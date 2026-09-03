@@ -1,0 +1,82 @@
+@import "tailwindcss";
+@plugin "./hero.ts"; /* path relatif ke file CSS ini */
+@source "../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
+@custom-variant dark (&:is(.dark *));
+
+@font-face {
+  font-family: Poppins;
+  src: url("./assets/Poppins-Medium.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  font-family: Poppins, sans-serif;
+  color: black;
+}
+.dark {
+  color: white;
+  background-color: #0B1330;
+}
+
+.landing-grid-bg {
+  background-color: #ffffff; /* light gray bg */
+  background-image: linear-gradient(rgba(141, 135, 135, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(141, 135, 135, 0.15) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+.dark .landing-grid-bg {
+  background-color: #0B1330;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+}
+
+.standar-grid-bg {
+  background-color: #f8fafc; /* slightly darker background */
+  background-image: linear-gradient(rgba(141, 135, 135, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(141, 135, 135, 0.08) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+.dark .standar-grid-bg {
+  background-color: #0d1838;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+.hero-grid-bg {
+  background-color: #f8fafc;
+  background-image: linear-gradient(rgba(141, 135, 135, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(141, 135, 135, 0.08) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+.dark .hero-grid-bg {
+  background-color: #0B1330;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+
+@font-face {
+  font-family: 'Geist Local';
+  src: url("./assets/Geist-VariableFont_wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+}
+
+.font-geist {
+  font-family: 'Geist Local', sans-serif;
+}
+
+@font-face {
+  font-family: 'Geist Mono Local';
+  src: url("./assets/GeistMono-VariableFont_wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+}
+
+.font-geist-mono {
+  font-family: 'Geist Mono Local', monospace;
+}
