@@ -218,7 +218,7 @@ export const SatpamDetailModals: React.FC<SatpamDetailModalsProps> = ({
                 />
                 <div className="flex flex-col gap-1">
                   <span className="text-xs font-semibold text-[#122C93]">
-                    Upload Dokumen (Opsional)
+                    Upload Dokumen (Wajib)
                   </span>
                   <label
                     htmlFor="upload-edu"
