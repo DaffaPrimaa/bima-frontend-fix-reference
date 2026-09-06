@@ -90,13 +90,6 @@ const Sidebar = () => {
     //   path: "/AdminManageWaktu",
     //   hidden: role !== "client",
     // },
-    // {
-    //   key: "manage-shift",
-    //   name: "Manage Shift",
-    //   icon: <GoClockFill className="text-xl" />,
-    //   path: "/AdminManageShift",
-    //   hidden: role !== "client",
-    // },
     {
       key: "penjadwalan-satpam",
       name: "Penjadwalan Satpam",
