@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { activityLogService } from "../services/activityLogService";
 import type { ActivityLogItem, ActivityLogActionItem } from "../types/activityLog";
 import { addToast } from "@heroui/react";
@@ -14,7 +14,12 @@ export const useActivityLogData = () => {
   const [limit, setLimit] = useState(20);
   
   // Pagination
-  const [historyCursor, setHistoryCursor] = useState<(string | null)[]>([null]);
+  // Cursor tiap halaman disimpan di ref, BUKAN state: nilainya tidak pernah
+  // ditampilkan, cuma dibaca di dalam fetchData. Dulu ini state dan ikut jadi
+  // dependency fetchData, padahal fetchData sendiri yang mengisinya dengan
+  // array baru tiap kali sukses -> identitas fetchData berubah -> useEffect di
+  // bawah nembak lagi -> loop tanpa henti (terukur ±84 request / 3 detik).
+  const historyCursorRef = useRef<(string | null)[]>([null]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [hasMore, setHasMore] = useState(false);
 
@@ -36,7 +41,7 @@ export const useActivityLogData = () => {
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const currentCursor = historyCursor[currentPageIndex];
+      const currentCursor = historyCursorRef.current[currentPageIndex];
       const res = await activityLogService.getAll({
         limit,
         cursor: currentCursor,
@@ -59,11 +64,7 @@ export const useActivityLogData = () => {
       setHasMore(res.meta.has_more);
       
       if (res.meta.has_more && res.meta.next_cursor) {
-        setHistoryCursor((prev) => {
-          const newHistory = [...prev];
-          newHistory[currentPageIndex + 1] = res.meta.next_cursor;
-          return newHistory;
-        });
+        historyCursorRef.current[currentPageIndex + 1] = res.meta.next_cursor;
       }
     } catch (err: any) {
       addToast({
@@ -76,11 +77,11 @@ export const useActivityLogData = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [limit, actionFilter, dateRange, currentPageIndex, historyCursor]);
+  }, [limit, actionFilter, dateRange, currentPageIndex]);
 
   // Reset pagination on filter change
   useEffect(() => {
-    setHistoryCursor([null]);
+    historyCursorRef.current = [null];
     setCurrentPageIndex(0);
   }, [actionFilter, dateRange, limit]);
 
@@ -105,7 +106,7 @@ export const useActivityLogData = () => {
   };
 
   const refreshData = () => {
-    setHistoryCursor([null]);
+    historyCursorRef.current = [null];
     setCurrentPageIndex(0);
     fetchData();
   };
