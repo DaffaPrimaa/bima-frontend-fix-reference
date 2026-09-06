@@ -65,8 +65,22 @@ const ClientPenjadwalanSatpam = () => {
       if (rangeMode === "mingguan") rangeEnd.setDate(rangeEnd.getDate() + 6);
       const from = toIsoDate(currentDate);
       const to = toIsoDate(rangeEnd);
-      const result = await scheduleService.getAll(50, null, from, to);
-      setAllJadwal(Array.isArray(result.data) ? result.data : []);
+
+      // BE tidak punya filter "selain cancelled" (cuma bisa satu status
+      // pasti atau semua), dan tabel di sini butuh lihat status apa pun
+      // (termasuk completed buat minggu yang sudah lewat) — jadi ambil
+      // SEMUA halaman, bukan cuma 50 baris pertama. Tanpa ini, jadwal aktif
+      // bisa "hilang" dari tampilan kalau ketutup banyak baris cancelled
+      // lain dalam rentang tanggal yang sama.
+      let cursor: string | null = null;
+      const all: Jadwal[] = [];
+      do {
+        const result = await scheduleService.getAll(50, cursor, from, to);
+        if (Array.isArray(result.data)) all.push(...result.data);
+        cursor = result.meta?.has_more ? result.meta.next_cursor : null;
+      } while (cursor);
+
+      setAllJadwal(all);
     } catch (error: any) {
       addToast({
         title: "Gagal",
