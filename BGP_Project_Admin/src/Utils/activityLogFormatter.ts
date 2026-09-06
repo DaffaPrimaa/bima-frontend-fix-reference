@@ -1,8 +1,7 @@
 import type { ActivityLogItem } from "../types/activityLog";
 import type { IconType } from "react-icons";
-import { 
-  AiOutlineDelete, 
-  AiOutlineUpload 
+import {
+  AiOutlineDelete
 } from "react-icons/ai";
 import { 
   FaUserTimes, 

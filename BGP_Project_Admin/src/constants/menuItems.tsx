@@ -24,7 +24,7 @@ export const DASHBOARD_MENU_ITEMS: MenuItem[] = [
     desc: "Atur jadwal jaga, generate shift otomatis.",
     icon: <FaCalendarAlt size={24} className="text-white" />,
     color: "bg-green-600",
-    path: "/AdminManageShift",
+    path: "/ClientPenjadwalanSatpam",
     allowedRoles: ["Client"],
   },
   {

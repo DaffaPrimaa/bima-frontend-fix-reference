@@ -9,7 +9,6 @@ import ScrollToTop from "./Utils/ScrollToTop";
 import AdminManageUsers from "./pages/AdminManageUsers";
 import AdminManageSatpam from "./pages/AdminManageSatpam";
 import AdminDashboard from "./pages/AdminDashboard";
-import AdminManageShift from "./pages/AdminManageShift";
 import AdminManagePos from "./pages/AdminManagePos";
 import AdminManagePosUtama from "./pages/AdminManagePosUtama";
 import AdminRekapAbsensi from "./pages/AdminRekapAbsensi";
@@ -90,7 +89,6 @@ function App() {
             />
             <Route path="/AdminAprovalAkun" element={<AdminAprovalAkun />} />
             <Route path="/AdminManageUsers" element={<AdminManageUsers />} />
-            <Route path="/AdminManageShift" element={<AdminManageShift />} />
             <Route path="/AdminManagePos" element={<AdminManagePos />} />
             <Route
               path="/AdminManagePosUtama"
