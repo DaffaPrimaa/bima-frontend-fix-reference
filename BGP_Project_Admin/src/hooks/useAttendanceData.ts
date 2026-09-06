@@ -30,6 +30,10 @@ export const useAttendanceData = () => {
   }, []);
 
   const fetchMitraOptions = useCallback(async () => {
+    // Daftar client cuma dipakai buat dropdown filter milik admin, dan
+    // endpoint-nya memang menolak role client (403) — jadi jangan ditembak
+    // sama sekali kalau bukan admin.
+    if (getRole() !== "admin") return;
     try {
       const res = await satpamService.getMitraOptions();
       if (res && Array.isArray(res.data)) {

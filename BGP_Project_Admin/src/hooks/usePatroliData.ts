@@ -30,6 +30,8 @@ export const usePatroliData = () => {
   }, []);
 
   const fetchMitraOptions = useCallback(async () => {
+    // Lihat catatan di useAttendanceData: endpoint /client admin-only.
+    if (getRole() !== "admin") return;
     try {
       const res = await satpamService.getMitraOptions();
       if (res && Array.isArray(res.data)) {

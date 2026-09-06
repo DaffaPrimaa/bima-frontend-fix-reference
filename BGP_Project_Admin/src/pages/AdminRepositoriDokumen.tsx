@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { formatDateTimeZone } from "../Utils/helpers";
+import { formatDateTimeZone, getRole } from "../Utils/helpers";
 import { useSharedDocumentData } from "../hooks/useSharedDocumentData";
 import { useSharedDocumentForm } from "../hooks/useSharedDocumentForm";
 import { satpamService } from "../services/satpamService";
@@ -125,6 +125,9 @@ const AdminRepositoriDokumen = () => {
 
   useEffect(() => {
     const fetchInitialMitra = async () => {
+      // Filter "Semua Client" cuma buat admin, dan endpoint /client memang
+      // menolak role client (403) — jangan ditembak kalau bukan admin.
+      if (getRole() !== "admin") return;
       try {
         const res = await satpamService.getMitraOptions();
         if (res && Array.isArray(res.data)) {
@@ -142,6 +145,7 @@ const AdminRepositoriDokumen = () => {
   }, []);
 
   const loadMoreMitra = async () => {
+    if (getRole() !== "admin") return;
     if (!hasMoreMitra || !nextCursorMitra || loadingMoreMitra) return;
     setLoadingMoreMitra(true);
     try {

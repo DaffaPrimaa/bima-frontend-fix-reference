@@ -84,7 +84,12 @@ export const satpamService = {
       method: "GET",
       headers: getHeaders(),
     });
-    return res.json();
+    const result = await res.json().catch(() => ({}));
+    // Endpoint /client khusus admin — tanpa cek ini, body 403 diperlakukan
+    // seperti sukses dan dropdown mitra diam-diam kosong tanpa jejak.
+    if (!res.ok)
+      throw new Error(result.error?.message || result.message || "Gagal memuat daftar client");
+    return result;
   },
 
   getAssignment: async (satpamUuid: string): Promise<{ data: { assigned: boolean; client?: { uuid: string; nama: string } } }> => {

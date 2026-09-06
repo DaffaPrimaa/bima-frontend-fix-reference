@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useDisclosure, addToast } from "@heroui/react";
 import { sharedDocumentService } from "../services/sharedDocumentService";
 import { satpamService } from "../services/satpamService";
+import { getRole } from "../Utils/helpers";
 
 const ALL_KEY = "semua";
 
@@ -22,6 +23,9 @@ export const useSharedDocumentForm = (refreshData: () => void) => {
   }, []);
 
   const fetchTargetOptions = async () => {
+    // Daftar target penerima diambil dari /client yang admin-only; role client
+    // tetap bisa pakai opsi "Semua Client" yang sudah jadi nilai awal.
+    if (getRole() !== "admin") return;
     setLoadingTargets(true);
     try {
       const res = await satpamService.getMitraOptions();
