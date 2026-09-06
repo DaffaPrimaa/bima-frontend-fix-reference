@@ -23,7 +23,7 @@ import { MdDelete, MdEditCalendar } from "react-icons/md";
 import ShiftTableNew, {
   type ShiftData,
 } from "../Components/shifts/ShiftTableNew";
-import { DeleteConfirmationModal } from "../Components/common/DeleteConfirmationModal";
+import { DeleteConfirmationModal, type DeleteScope } from "../Components/common/DeleteConfirmationModal";
 import { scheduleService } from "../services/scheduleService";
 import { useShiftData } from "../hooks/useShiftData";
 import { useShiftForm } from "../hooks/useShiftForm";
@@ -380,21 +380,40 @@ const ClientPenjadwalanSatpam = () => {
   };
 
   /**
-   * "Dan seterusnya": kalau jadwal ini berasal dari Assignment (rrule),
-   * hapus assignment-nya (BE cascade-cancel semua instance depan yang
-   * belum di-checkin). Kalau manual (assignment_uuid null — ini yang
-   * paling sering terjadi lewat form "Tambah Jadwal" di halaman ini),
-   * gak ada seri resmi di BE untuk dihapus sekaligus — jadi ditebak lewat
-   * kombinasi satpam+pos+shift yang sama dari tanggal ini dan seterusnya
-   * (lihat scheduleService.cancelManualSeriesFrom).
+   * 3 cakupan hapus:
+   * - single: cuma instance ini.
+   * - sameDayForward: hari ini + hari yang sama (mis. tiap Kamis) ke depan
+   *   saja — Assignment: buang hari itu dari BYDAY rrule-nya (hari lain di
+   *   pola yang sama tidak disentuh); manual: cancel yang match kombinasi
+   *   + hari yang sama, hari lain dibiarkan.
+   * - forward: hari ini dan SEMUA hari ke depan tanpa pandang hari apa —
+   *   Assignment: hapus assignment-nya sekalian (BE cascade-cancel semua
+   *   instance depan yang belum di-checkin); manual: ditebak lewat
+   *   kombinasi satpam+pos+shift yang sama dari tanggal ini dan seterusnya
+   *   (lihat scheduleService.cancelManualSeriesFrom), gak ada seri resmi
+   *   buat manual di BE.
    */
-  const executeDeleteJadwal = async (scope: "single" | "forward") => {
+  const executeDeleteJadwal = async (scope: DeleteScope) => {
     const target = deleteJadwalTarget;
     if (!target) return;
     setIsDeletingJadwal(true);
     try {
+      const dayOfWeek = new Date(`${String(target.work_date).split("T")[0]}T00:00:00`).getDay();
+
       if (scope === "single") {
         await scheduleService.delete(target.uuid);
+      } else if (scope === "sameDayForward") {
+        if (target.assignment_uuid) {
+          await scheduleService.removeDayFromAssignment(target.assignment_uuid, dayOfWeek);
+        } else {
+          await scheduleService.cancelManualSeriesFrom({
+            satpam_uuid: target.satpam.uuid,
+            pos_uuid: target.pos.uuid,
+            pattern_uuid: target.pattern.uuid,
+            from: String(target.work_date).split("T")[0],
+            dayOfWeek,
+          });
+        }
       } else if (target.assignment_uuid) {
         await scheduleService.deleteAssignment(target.assignment_uuid);
       } else {
@@ -405,12 +424,15 @@ const ClientPenjadwalanSatpam = () => {
           from: String(target.work_date).split("T")[0],
         });
       }
+
+      const scopeLabel = {
+        single: "Jadwal hari itu berhasil dihapus",
+        sameDayForward: "Jadwal hari itu dan hari yang sama selanjutnya berhasil dihapus",
+        forward: "Jadwal hari itu dan semua hari selanjutnya berhasil dihapus",
+      }[scope];
       addToast({
         title: "Berhasil",
-        description:
-          scope === "single"
-            ? "Jadwal hari itu berhasil dihapus"
-            : "Jadwal hari itu dan seterusnya berhasil dihapus",
+        description: scopeLabel,
         color: "success",
       });
       fetchAllJadwal();

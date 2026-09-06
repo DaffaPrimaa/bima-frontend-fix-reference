@@ -271,22 +271,93 @@ export const scheduleService = {
     return result;
   },
 
+  getAssignment: async (
+    uuid: string,
+  ): Promise<{ rrule: string; effective_to: string | null }> => {
+    const res = await fetchWithAuth(`${BASE_URL_API}/shift-assignments/${uuid}`, {
+      headers: getHeaders(),
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok)
+      throw new Error(result.error?.message || result.message || "Gagal mengambil pola jadwal");
+    return result.data;
+  },
+
   /**
-   * Batalkan seluruh jadwal manual milik kombinasi satpam+pos+pattern yang
-   * sama, dari tanggal `from` dan seterusnya (tanpa batas akhir).
+   * "Hapus hari ini dan hari yang sama selanjutnya" untuk jadwal hasil
+   * Assignment (rrule) — buang SATU hari (dayOfWeek) dari daftar BYDAY
+   * rrule-nya lewat PATCH, tanpa mengganggu hari lain di pola yang sama.
+   * Kalau itu satu-satunya hari di rrule, assignment-nya sekalian dihapus
+   * (rrule kosong tidak berguna). Instance yang sudah kadung dibuat untuk
+   * hari itu ke depan direkonsiliasi lewat /shift-instances/generate —
+   * endpoint yang sama dipakai fitur "Generate Jadwal" — supaya efeknya
+   * langsung kelihatan, bukan nunggu cron job jalan sendiri.
+   */
+  removeDayFromAssignment: async (assignmentUuid: string, dayOfWeek: number) => {
+    const assignment = await scheduleService.getAssignment(assignmentUuid);
+    const dayCode = DAY_CODE[dayOfWeek];
+    const currentDays = (assignment.rrule.match(/BYDAY=([^;]+)/)?.[1] ?? "")
+      .split(",")
+      .filter(Boolean);
+    const remainingDays = currentDays.filter((d) => d !== dayCode);
+
+    if (remainingDays.length === 0) {
+      return scheduleService.deleteAssignment(assignmentUuid);
+    }
+
+    const newRrule = assignment.rrule.replace(/BYDAY=[^;]+/, `BYDAY=${remainingDays.join(",")}`);
+    const res = await fetchWithAuth(`${BASE_URL_API}/shift-assignments/${assignmentUuid}`, {
+      method: "PATCH",
+      headers: getHeaders(),
+      body: JSON.stringify({ rrule: newRrule }),
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok)
+      throw new Error(result.error?.message || result.message || "Gagal mengubah pola jadwal");
+
+    const today = new Date();
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const oneYearAhead = new Date(today);
+    oneYearAhead.setFullYear(oneYearAhead.getFullYear() + 1);
+
+    await fetchWithAuth(`${BASE_URL_API}/shift-instances/generate`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({
+        from: fmt(today),
+        to: assignment.effective_to ?? fmt(oneYearAhead),
+      }),
+    }).catch(() => {});
+
+    return result;
+  },
+
+  /**
+   * Batalkan jadwal manual milik kombinasi satpam+pos+pattern yang sama,
+   * dari tanggal `from` dan seterusnya (tanpa batas akhir). `dayOfWeek`
+   * opsional buat "hapus hari ini dan hari yang sama selanjutnya" — cuma
+   * batalkan yang jatuh di hari itu, hari lain tidak disentuh.
    */
   cancelManualSeriesFrom: async ({
     satpam_uuid,
     pos_uuid,
     pattern_uuid,
     from,
+    dayOfWeek,
   }: {
     satpam_uuid: string;
     pos_uuid: string;
     pattern_uuid: string;
     from: string;
+    dayOfWeek?: number;
   }) => {
-    const targets = await findManualInstances({ satpam_uuid, pos_uuid, pattern_uuid, from });
+    let targets = await findManualInstances({ satpam_uuid, pos_uuid, pattern_uuid, from });
+    if (dayOfWeek !== undefined) {
+      targets = targets.filter(
+        (t) => new Date(`${t.work_date}T00:00:00`).getDay() === dayOfWeek,
+      );
+    }
     for (const t of targets) {
       await scheduleService.delete(t.uuid);
     }

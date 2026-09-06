@@ -11,7 +11,7 @@ import {
 } from "@heroui/react";
 import { FaExclamationTriangle } from "react-icons/fa";
 
-export type DeleteScope = "single" | "forward";
+export type DeleteScope = "single" | "sameDayForward" | "forward";
 
 interface DeleteConfirmationModalProps {
   isOpen: boolean;
@@ -19,12 +19,13 @@ interface DeleteConfirmationModalProps {
   /** Konfirmasi hapus polos (tanpa pilihan cakupan) — dipakai halaman lain. */
   onConfirm?: () => void;
   /**
-   * Kalau diisi, modal menampilkan pilihan cakupan (hari ini saja / dan
-   * seterusnya) dan memanggil ini dengan pilihan pengguna, bukan onConfirm.
-   * Cuma dipakai untuk hapus jadwal — halaman lain tidak perlu berubah.
+   * Kalau diisi, modal menampilkan pilihan cakupan (hari ini saja / hari
+   * yang sama selanjutnya / dan seterusnya) dan memanggil ini dengan
+   * pilihan pengguna, bukan onConfirm. Cuma dipakai untuk hapus jadwal —
+   * halaman lain tidak perlu berubah.
    */
   onConfirmScoped?: (scope: DeleteScope) => void;
-  scopeLabels?: { single: string; forward: string };
+  scopeLabels?: { single: string; sameDayForward: string; forward: string };
   title?: string;
   message?: string;
   isLoading?: boolean;
@@ -37,7 +38,8 @@ export const DeleteConfirmationModal = ({
   onConfirmScoped,
   scopeLabels = {
     single: "Hapus hari ini saja",
-    forward: "Hapus hari ini dan seterusnya",
+    sameDayForward: "Hapus hari ini dan hari yang sama selanjutnya",
+    forward: "Hapus hari ini dan semua hari selanjutnya",
   },
   title = "Konfirmasi Hapus",
   message = "Apakah anda yakin ingin menghapus data ini?",
@@ -63,6 +65,7 @@ export const DeleteConfirmationModal = ({
                   className="text-left mt-2"
                 >
                   <Radio value="single">{scopeLabels.single}</Radio>
+                  <Radio value="sameDayForward">{scopeLabels.sameDayForward}</Radio>
                   <Radio value="forward">{scopeLabels.forward}</Radio>
                 </RadioGroup>
               )}
