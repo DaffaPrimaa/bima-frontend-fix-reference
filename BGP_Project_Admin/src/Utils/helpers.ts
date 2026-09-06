@@ -5,12 +5,15 @@ export const getToken = (): string | undefined => {
     ?.split("=")[1];
 };
 
-export const getRole = (): string | undefined => {
+// Role user dari cookie, SELALU huruf kecil ("admin"/"client"/"") — seluruh
+// perbandingan role di app ini memakai literal huruf kecil, jadi normalisasi
+// dilakukan sekali di sini biar tidak bergantung pada casing kiriman BE.
+export const getRole = (): string => {
   const role = document.cookie
     .split("; ")
     .find((row) => row.startsWith("role="))
     ?.split("=")[1];
-  return role || localStorage.getItem("role") || "";
+  return (role ?? "").toLowerCase();
 };
 
 export const formatTanggal = (dateString?: string): string => {

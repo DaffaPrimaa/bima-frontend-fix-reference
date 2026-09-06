@@ -4,6 +4,7 @@ import Mainlayouts from "./Layout/Mainlayouts";
 import Login from "./Auth/Login";
 
 import PrivateRoute from "./Utils/PrivateRoute";
+import RequireRole from "./Utils/RequireRole";
 import ScrollToTop from "./Utils/ScrollToTop";
 
 import AdminManageUsers from "./pages/AdminManageUsers";
@@ -14,7 +15,6 @@ import AdminManagePosUtama from "./pages/AdminManagePosUtama";
 import AdminRekapAbsensi from "./pages/AdminRekapAbsensi";
 import AdminRekapPatroli from "./pages/AdminRekapPatroli";
 import ClientManageRadius from "./pages/ClientManageRadius";
-import AdminManageWaktuJadwal from "./pages/AdminManageWaktuJadwal";
 import NotFoundPage from "./pages/NotFoundPage";
 import ClientDashboard from "./pages/ClientDashboard";
 import ClientDetailsSatpam from "./pages/ClientDetailsSatpam";
@@ -46,8 +46,36 @@ function App() {
         <Route element={<PrivateRoute />}>
           {/* ada side bar sama navbarnya */}
           <Route element={<Mainlayouts />}>
-            <Route path="/AdminDashboard" element={<AdminDashboard />} />
-            <Route path="/ClientDashboard" element={<ClientDashboard />} />
+            {/* Khusus Admin — route yang Sidebar & menuItems sama-sama
+                menandai admin-only. Selain itu dibiarkan shared, karena
+                perannya cuma tersirat dan salah-kunci lebih mahal. */}
+            <Route element={<RequireRole allow={["admin"]} />}>
+              <Route path="/AdminDashboard" element={<AdminDashboard />} />
+              <Route path="/AdminAprovalAkun" element={<AdminAprovalAkun />} />
+              <Route path="/AdminManageUsers" element={<AdminManageUsers />} />
+            </Route>
+
+            {/* Khusus Client */}
+            <Route element={<RequireRole allow={["client"]} />}>
+              <Route path="/ClientDashboard" element={<ClientDashboard />} />
+              <Route
+                path="/ClientPenjadwalanSatpam"
+                element={<ClientPenjadwalanSatpam />}
+              />
+              <Route path="/AdminManagePos" element={<AdminManagePos />} />
+              <Route
+                path="/AdminManagePosUtama"
+                element={<AdminManagePosUtama />}
+              />
+              <Route path="/ClientManageRadius" element={<ClientManageRadius />} />
+              <Route path="/ClientGpsTracking" element={<ClientTrackingGps />} />
+              <Route
+                path="/ClientRiwayatPesan"
+                element={<ClientRiwayatPesan />}
+              />
+            </Route>
+
+            {/* Bisa diakses Admin maupun Client */}
             <Route path="/AdminManageSatpam" element={<AdminManageSatpam />} />
             <Route
               path="/AdminEditDetailSatpam"
@@ -57,20 +85,10 @@ function App() {
               path="/ClientDetailSatpam"
               element={<ClientDetailsSatpam />}
             />
-            <Route
-              path="/ClientPenjadwalanSatpam"
-              element={<ClientPenjadwalanSatpam />}
-            />
+            <Route path="/AdminDetailSatpam" element={<AdminDetailsSatpam />} />
             <Route path="/ClientActivityLog" element={<ClientActivityLog />} />
-            <Route
-              path="/ClientRiwayatPesan"
-              element={<ClientRiwayatPesan />}
-            />
-            <Route path="/ClientGpsTracking" element={<ClientTrackingGps />} />
             <Route path="/AdminActivityLog" element={<AdminActivityLog />} />
             <Route path="/AdminPanicAlert" element={<AdminPanicAlert />} />
-
-            <Route path="/AdminDetailSatpam" element={<AdminDetailsSatpam />} />
             <Route
               path="/AdminRepositoriDokumen"
               element={<AdminRepositoriDokumen />}
@@ -87,20 +105,8 @@ function App() {
               path="/AdminManagePengajuan"
               element={<AdminManagePengajuan />}
             />
-            <Route path="/AdminAprovalAkun" element={<AdminAprovalAkun />} />
-            <Route path="/AdminManageUsers" element={<AdminManageUsers />} />
-            <Route path="/AdminManagePos" element={<AdminManagePos />} />
-            <Route
-              path="/AdminManagePosUtama"
-              element={<AdminManagePosUtama />}
-            />
             <Route path="/AdminRekapAbsensi" element={<AdminRekapAbsensi />} />
             <Route path="/AdminRekapPatroli" element={<AdminRekapPatroli />} />
-            <Route path="/ClientManageRadius" element={<ClientManageRadius />} />
-            <Route
-              path="/AdminManageWaktu"
-              element={<AdminManageWaktuJadwal />}
-            />
             {/* Buat selanjutnya ya */}
           </Route>
           {/* Error Page Handler */}

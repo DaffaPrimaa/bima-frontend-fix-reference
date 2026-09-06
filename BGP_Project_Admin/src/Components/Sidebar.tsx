@@ -30,6 +30,7 @@ import {
 } from "react-icons/tb";
 import logo from "../assets/images/logo.webp";
 import { HiMiniBellAlert } from "react-icons/hi2";
+import { getRole } from "../Utils/helpers";
 
 const Sidebar = () => {
   const location = useLocation();
@@ -37,10 +38,7 @@ const Sidebar = () => {
 
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const role = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("role="))
-    ?.split("=")[1];
+  const role = getRole();
 
   const menu = [
     {
@@ -83,13 +81,6 @@ const Sidebar = () => {
       path: "/AdminManagePosUtama",
       hidden: role !== "client",
     },
-    // {
-    //   key: "manage-waktu",
-    //   name: "Manage Waktu",
-    //   icon: <MdOutlineLockClock className="text-xl" />,
-    //   path: "/AdminManageWaktu",
-    //   hidden: role !== "client",
-    // },
     {
       key: "penjadwalan-satpam",
       name: "Penjadwalan Satpam",

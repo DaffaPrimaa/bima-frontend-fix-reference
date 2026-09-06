@@ -20,9 +20,10 @@ export const useDashboard = () => {
 
   const filteredMenuItems = useMemo(() => {
     if (!user) return [];
-    return DASHBOARD_MENU_ITEMS.filter((item) =>
-      item.allowedRoles.includes(user.role),
-    );
+    // Role di sini datang dari payload JWT (bukan cookie), jadi tetap perlu
+    // dinormalkan sendiri — allowedRoles disimpan huruf kecil semua.
+    const role = user.role?.toLowerCase();
+    return DASHBOARD_MENU_ITEMS.filter((item) => item.allowedRoles.includes(role));
   }, [user]);
 
   return {

@@ -123,7 +123,9 @@ const Login = () => {
       }
 
       const { access_token, refresh_token, user } = responseData.data;
-      const userRole = user.role;
+      // Disimpan huruf kecil supaya konsisten dengan getRole() dan seluruh
+      // perbandingan role di app, apa pun casing yang dikirim BE.
+      const userRole = (user.role ?? "").toLowerCase();
 
       document.cookie = `token=${access_token}; path=/;`;
       document.cookie = `refresh_token=${refresh_token}; path=/;`;

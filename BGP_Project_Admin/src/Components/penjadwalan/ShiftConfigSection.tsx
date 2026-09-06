@@ -35,6 +35,7 @@ const ShiftConfigSection = () => {
   } = useShiftPatternData();
 
   const [deleteShiftId, setDeleteShiftId] = useState<string | null>(null);
+  const [isDeletingShift, setIsDeletingShift] = useState(false);
 
   const modalShiftForm = useDisclosure();
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
@@ -73,6 +74,7 @@ const ShiftConfigSection = () => {
 
   const handleDeleteShift = async () => {
     if (!deleteShiftId) return;
+    setIsDeletingShift(true);
     try {
       await shiftPatternService.delete(deleteShiftId);
       addToast({
@@ -92,6 +94,7 @@ const ShiftConfigSection = () => {
         timeout: 3000,
       });
     } finally {
+      setIsDeletingShift(false);
       setDeleteShiftId(null);
     }
   };
@@ -298,6 +301,7 @@ const ShiftConfigSection = () => {
         isOpen={!!deleteShiftId}
         onClose={() => setDeleteShiftId(null)}
         onConfirm={handleDeleteShift}
+        isLoading={isDeletingShift}
         title="Konfirmasi Hapus Shift"
         message="Apakah anda yakin ingin menghapus shift ini?"
       />

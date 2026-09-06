@@ -3,7 +3,6 @@ import {
   FaCalendarAlt,
   FaMapMarkedAlt,
   FaCogs,
-  FaRegClock,
   FaUserShield,
 } from "react-icons/fa";
 import { LuScanFace } from "react-icons/lu";
@@ -17,7 +16,7 @@ export const DASHBOARD_MENU_ITEMS: MenuItem[] = [
     icon: <FaUsers size={24} className="text-white" />,
     color: "bg-blue-600",
     path: "/AdminManageSatpam",
-    allowedRoles: ["Client", "Admin"],
+    allowedRoles: ["client", "admin"],
   },
   {
     title: "Manajemen Shift",
@@ -25,7 +24,7 @@ export const DASHBOARD_MENU_ITEMS: MenuItem[] = [
     icon: <FaCalendarAlt size={24} className="text-white" />,
     color: "bg-green-600",
     path: "/ClientPenjadwalanSatpam",
-    allowedRoles: ["Client"],
+    allowedRoles: ["client"],
   },
   {
     title: "Data Pos Patroli",
@@ -33,7 +32,7 @@ export const DASHBOARD_MENU_ITEMS: MenuItem[] = [
     icon: <FaMapMarkedAlt size={24} className="text-white" />,
     color: "bg-orange-600",
     path: "/AdminManagePos",
-    allowedRoles: ["Client"],
+    allowedRoles: ["client"],
   },
   {
     title: "Data Pos Utama",
@@ -41,7 +40,7 @@ export const DASHBOARD_MENU_ITEMS: MenuItem[] = [
     icon: <FaMapMarkedAlt size={24} className="text-white" />,
     color: "bg-orange-600",
     path: "/AdminManagePosUtama",
-    allowedRoles: ["Client"],
+    allowedRoles: ["client"],
   },
   {
     title: "Rekap Absensi",
@@ -49,7 +48,7 @@ export const DASHBOARD_MENU_ITEMS: MenuItem[] = [
     icon: <LuScanFace size={24} className="text-white" />,
     color: "bg-teal-600",
     path: "/AdminRekapAbsensi",
-    allowedRoles: ["Admin", "Client"],
+    allowedRoles: ["admin", "client"],
   },
   {
     title: "Rekap Patroli",
@@ -57,7 +56,7 @@ export const DASHBOARD_MENU_ITEMS: MenuItem[] = [
     icon: <IoMdPhotos size={24} className="text-white" />,
     color: "bg-teal-600",
     path: "/AdminRekapPatroli",
-    allowedRoles: ["Admin", "Client"],
+    allowedRoles: ["admin", "client"],
   },
   {
     title: "Konfigurasi Radius",
@@ -65,15 +64,7 @@ export const DASHBOARD_MENU_ITEMS: MenuItem[] = [
     icon: <FaCogs size={24} className="text-white" />,
     color: "bg-gray-600",
     path: "/ClientManageRadius",
-    allowedRoles: ["Client"],
-  },
-  {
-    title: "Konfigurasi Waktu",
-    desc: "Setting waktu untuk shift kerja.",
-    icon: <FaRegClock size={24} className="text-white" />,
-    color: "bg-red-600",
-    path: "/AdminManageWaktu",
-    allowedRoles: ["Client"],
+    allowedRoles: ["client"],
   },
   {
     title: "Manajemen Client",
@@ -81,6 +72,6 @@ export const DASHBOARD_MENU_ITEMS: MenuItem[] = [
     icon: <FaUserShield size={24} className="text-white" />,
     color: "bg-red-600",
     path: "/AdminManageUsers",
-    allowedRoles: ["Admin"],
+    allowedRoles: ["admin"],
   },
 ];
