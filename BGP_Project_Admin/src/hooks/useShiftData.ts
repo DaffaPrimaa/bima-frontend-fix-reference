@@ -6,7 +6,8 @@ import { addToast } from "@heroui/react";
 export const useShiftData = () => {
   const [listWaktu, setListWaktu] = useState<Shift[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const limit = 12;
+  const [limit, setLimitState] = useState(12);
+  const [search, setSearchState] = useState("");
   const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([null]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -16,11 +17,24 @@ export const useShiftData = () => {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Ganti limit/search berarti mulai dari halaman pertama lagi — cursor
+  // lama gak valid buat kombinasi baru.
+  const setLimit = (value: number) => {
+    setLimitState(value);
+    setCursorHistory([null]);
+    setCurrentIndex(0);
+  };
+  const setSearch = (value: string) => {
+    setSearchState(value);
+    setCursorHistory([null]);
+    setCurrentIndex(0);
+  };
+
   const fetchWaktu = useCallback(async () => {
     setIsLoading(true);
     try {
       const cursor = cursorHistory[currentIndex];
-      const result = await shiftService.getAll(limit, cursor);
+      const result = await shiftService.getAll(limit, cursor, search);
       if (result && Array.isArray(result.data)) {
         setListWaktu(result.data);
         setHasMore(result.meta?.has_more ?? false);
@@ -42,7 +56,7 @@ export const useShiftData = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentIndex, cursorHistory]);
+  }, [currentIndex, cursorHistory, limit, search]);
 
   useEffect(() => {
     fetchWaktu();
@@ -105,6 +119,10 @@ export const useShiftData = () => {
       hasMore,
       rowsPerPage: limit,
     },
+    search,
+    setSearch,
+    limit,
+    setLimit,
     setPage: resetPagination,
     handleNextPage,
     handlePrevPage,

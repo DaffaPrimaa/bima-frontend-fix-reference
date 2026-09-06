@@ -321,14 +321,25 @@ export const scheduleService = {
     const oneYearAhead = new Date(today);
     oneYearAhead.setFullYear(oneYearAhead.getFullYear() + 1);
 
-    await fetchWithAuth(`${BASE_URL_API}/shift-instances/generate`, {
-      method: "POST",
-      headers: getHeaders(),
-      body: JSON.stringify({
-        from: fmt(today),
-        to: assignment.effective_to ?? fmt(oneYearAhead),
-      }),
-    }).catch(() => {});
+    // Rrule-nya sudah kepatch (yang penting untuk ke depannya), rekonsiliasi
+    // ini cuma biar efeknya kelihatan SEKARANG juga tanpa nunggu cron —
+    // kalau gagal, tidak menggagalkan seluruh operasi (pola sudah benar),
+    // tapi dicatat di console supaya kegagalan tidak hilang tanpa jejak.
+    try {
+      const genRes = await fetchWithAuth(`${BASE_URL_API}/shift-instances/generate`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          from: fmt(today),
+          to: assignment.effective_to ?? fmt(oneYearAhead),
+        }),
+      });
+      if (!genRes.ok) {
+        console.warn("removeDayFromAssignment: rekonsiliasi /shift-instances/generate gagal, status", genRes.status);
+      }
+    } catch (e) {
+      console.warn("removeDayFromAssignment: rekonsiliasi /shift-instances/generate gagal", e);
+    }
 
     return result;
   },

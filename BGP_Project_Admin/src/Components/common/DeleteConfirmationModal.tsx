@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Modal,
   ModalContent,
@@ -46,6 +46,15 @@ export const DeleteConfirmationModal = ({
   isLoading = false,
 }: DeleteConfirmationModalProps) => {
   const [scope, setScope] = useState<DeleteScope>("single");
+
+  // Modal ini gak di-unmount tiap ditutup (cuma isOpen yang toggle), jadi
+  // tanpa ini pilihan cakupan dari target sebelumnya kebawa ke target
+  // berikutnya — mis. pilih "dan seterusnya" buat baris A, batal, buka
+  // hapus buat baris B, radionya masih di "dan seterusnya" bukan default
+  // "hari ini saja".
+  useEffect(() => {
+    if (isOpen) setScope("single");
+  }, [isOpen]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="sm" backdrop="opaque">
