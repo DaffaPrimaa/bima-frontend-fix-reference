@@ -27,6 +27,9 @@ export interface Jadwal {
   satpam: { uuid: string; nama: string; nip: string };
   pattern: { uuid: string; nama: string; timezone: string };
   pos: { uuid: string; nama: string };
+  // Null kalau jadwal ini dibuat manual (bukan dari pola rrule) — lihat
+  // shift-instance.service.mjs toPublicInstance.
+  assignment_uuid?: string | null;
 }
 
 export interface ScheduleResponse {

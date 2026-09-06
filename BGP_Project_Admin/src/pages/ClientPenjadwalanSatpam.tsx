@@ -258,26 +258,50 @@ const ClientPenjadwalanSatpam = () => {
     }
   };
 
-  // === Hapus Jadwal (satu instance) ===
+  // === Hapus Jadwal (satu hari, atau hari itu + seterusnya) ===
   const jadwalDeleteModal = useDisclosure();
-  const [deleteJadwalTarget, setDeleteJadwalTarget] = useState<string | null>(
+  const [deleteJadwalTarget, setDeleteJadwalTarget] = useState<Jadwal | null>(
     null,
   );
   const [isDeletingJadwal, setIsDeletingJadwal] = useState(false);
 
-  const confirmDeleteJadwal = (uuid: string) => {
-    setDeleteJadwalTarget(uuid);
+  const confirmDeleteJadwal = (item: Jadwal) => {
+    setDeleteJadwalTarget(item);
     jadwalDeleteModal.onOpen();
   };
 
-  const executeDeleteJadwal = async () => {
-    if (!deleteJadwalTarget) return;
+  /**
+   * "Dan seterusnya": kalau jadwal ini berasal dari Assignment (rrule),
+   * hapus assignment-nya (BE cascade-cancel semua instance depan yang
+   * belum di-checkin). Kalau manual (assignment_uuid null — ini yang
+   * paling sering terjadi lewat form "Tambah Jadwal" di halaman ini),
+   * gak ada seri resmi di BE untuk dihapus sekaligus — jadi ditebak lewat
+   * kombinasi satpam+pos+shift yang sama dari tanggal ini dan seterusnya
+   * (lihat scheduleService.cancelManualSeriesFrom).
+   */
+  const executeDeleteJadwal = async (scope: "single" | "forward") => {
+    const target = deleteJadwalTarget;
+    if (!target) return;
     setIsDeletingJadwal(true);
     try {
-      await scheduleService.delete(deleteJadwalTarget);
+      if (scope === "single") {
+        await scheduleService.delete(target.uuid);
+      } else if (target.assignment_uuid) {
+        await scheduleService.deleteAssignment(target.assignment_uuid);
+      } else {
+        await scheduleService.cancelManualSeriesFrom({
+          satpam_uuid: target.satpam.uuid,
+          pos_uuid: target.pos.uuid,
+          pattern_uuid: target.pattern.uuid,
+          from: String(target.work_date).split("T")[0],
+        });
+      }
       addToast({
         title: "Berhasil",
-        description: "Jadwal berhasil dihapus",
+        description:
+          scope === "single"
+            ? "Jadwal hari itu berhasil dihapus"
+            : "Jadwal hari itu dan seterusnya berhasil dihapus",
         color: "success",
       });
       fetchAllJadwal();
@@ -435,7 +459,7 @@ const ClientPenjadwalanSatpam = () => {
                           />
                           <MdDelete
                             className="text-xl text-[#A70202] cursor-pointer"
-                            onClick={() => confirmDeleteJadwal(item.uuid)}
+                            onClick={() => confirmDeleteJadwal(item)}
                           />
                         </div>
                       </div>
@@ -924,7 +948,7 @@ const ClientPenjadwalanSatpam = () => {
       <DeleteConfirmationModal
         isOpen={jadwalDeleteModal.isOpen}
         onClose={() => jadwalDeleteModal.onOpenChange()}
-        onConfirm={executeDeleteJadwal}
+        onConfirmScoped={executeDeleteJadwal}
         isLoading={isDeletingJadwal}
         title="Hapus Jadwal"
         message="Apakah anda yakin ingin menghapus jadwal ini?"

@@ -96,12 +96,30 @@ export const scheduleService = {
     return result;
   },
 
-  update: async (_uuid: string, _body: CreateJadwalBody) => {
-    throw new Error(
-      "Fitur ubah jadwal belum didukung oleh backend saat ini. Hapus lalu buat ulang jadwal.",
-    );
+  /**
+   * BE tidak punya endpoint PATCH untuk satu instance jadwal (Assignment
+   * cuma bisa diubah rrule/tanggal efektifnya, bukan satpam/pos/pattern-nya
+   * — lihat updateAssignmentSchema di shift.validation.mjs) — jadi "ubah"
+   * diwujudkan sebagai buat instance baru dulu, baru batalkan yang lama.
+   * Urutan ini sengaja: kalau langkah create gagal, jadwal lama tetap utuh
+   * (gagal aman), bukan bikin satpam mendadak kehilangan jadwal hari itu.
+   * Kalau instance lama itu bagian dari Assignment (rrule), cuma occurrence
+   * INI yang diganti — assignment & occurrence lain di seri yang sama
+   * tidak disentuh.
+   */
+  update: async (uuid: string, body: CreateJadwalBody) => {
+    const created = await scheduleService.create(body);
+    try {
+      await scheduleService.delete(uuid);
+    } catch (e: any) {
+      throw new Error(
+        `Jadwal baru berhasil dibuat, tapi jadwal lama gagal dibatalkan otomatis (${e.message || "error"}). Hapus manual jadwal lama supaya tidak dobel.`,
+      );
+    }
+    return created;
   },
 
+  /** Batalkan SATU jadwal (hari itu doang) — POST /shift-instances/:uuid/cancel. */
   delete: async (uuid: string) => {
     const res = await fetchWithAuth(`${BASE_URL_API}/shift-instances/${uuid}/cancel`, {
       method: "POST",
@@ -111,6 +129,76 @@ export const scheduleService = {
     if (!res.ok)
       throw new Error(result.error?.message || result.message || "Gagal menghapus");
     return result;
+  },
+
+  /**
+   * Hapus pola berulang (Assignment) beserta seluruh jadwal ke depan yang
+   * belum di-checkin — DELETE /shift-assignments/:uuid. BE sendiri yang
+   * mengecualikan jadwal yang sudah ada catatan absensinya (riwayat tetap
+   * aman), lihat shift.service.mjs deleteAssignment.
+   */
+  deleteAssignment: async (assignmentUuid: string) => {
+    const res = await fetchWithAuth(`${BASE_URL_API}/shift-assignments/${assignmentUuid}`, {
+      method: "DELETE",
+      headers: getHeaders(),
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok)
+      throw new Error(result.error?.message || result.message || "Gagal menghapus pola jadwal");
+    return result;
+  },
+
+  /**
+   * Jadwal yang dibuat manual (assignment_uuid null) tidak punya "seri"
+   * resmi di BE untuk dihapus sekaligus — endpoint /shift-instances TIDAK
+   * punya filter by pattern, jadi kita tarik jadwal manual milik
+   * satpam+pos yang sama dari tanggal `from` dan seterusnya, saring ulang
+   * di sisi FE ke pattern yang sama, baru batalkan satu-satu. `source:
+   * "manual"` di query sengaja dipakai supaya jadwal hasil Assignment
+   * (rrule) yang kebetulan sama satpam/pos TIDAK ikut kesenggol.
+   */
+  cancelManualSeriesFrom: async ({
+    satpam_uuid,
+    pos_uuid,
+    pattern_uuid,
+    from,
+  }: {
+    satpam_uuid: string;
+    pos_uuid: string;
+    pattern_uuid: string;
+    from: string;
+  }) => {
+    let cursor: string | null = null;
+    const targets: string[] = [];
+
+    do {
+      const params = new URLSearchParams({
+        limit: "50",
+        satpam: satpam_uuid,
+        pos: pos_uuid,
+        source: "manual",
+        status: "scheduled",
+        from,
+      });
+      if (cursor) params.append("cursor", cursor);
+
+      const res = await fetchWithAuth(`${BASE_URL_API}/shift-instances?${params.toString()}`, {
+        headers: getHeaders(),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(result.error?.message || result.message || "Gagal memuat seri jadwal");
+
+      for (const item of result.data ?? []) {
+        if (item.pattern?.uuid === pattern_uuid) targets.push(item.uuid);
+      }
+      cursor = result.meta?.has_more ? result.meta.next_cursor : null;
+    } while (cursor);
+
+    for (const uuid of targets) {
+      await scheduleService.delete(uuid);
+    }
+    return { cancelled: targets.length };
   },
 
   generate: async (body: GenerateJadwalBody) => {
