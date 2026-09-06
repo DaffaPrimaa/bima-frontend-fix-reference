@@ -448,10 +448,32 @@ npm run build
 
 **Status:** kedelapan bug sudah diperbaiki di repo ini; **semuanya masih ada di prod**.
 
-**Cakupan audit runtime:** seluruh halaman yang terlihat oleh role **Client** sudah
-ditelusuri langsung ke BE production, sebelum dan sesudah perbaikan. Sweep untuk role
-**Admin** belum dijalankan — perlu login sebagai Admin, terutama untuk memastikan guard
-BUG-08 tidak salah mengunci halaman yang seharusnya boleh dibuka Admin.
+**Cakupan audit runtime:** seluruh halaman yang terlihat oleh role **Client** dan role
+**Admin** sudah ditelusuri langsung ke BE production, sebelum dan sesudah perbaikan.
+
+Hasil sweep **Admin** (login asli, `role: admin`):
+
+| Yang diuji | Hasil |
+|---|---|
+| 12 halaman yang terlihat Admin | **nol** request gagal, **nol** error JavaScript, data asli tampil |
+| `GET /client` untuk Admin | **200** di Manage Client, Rekap Absensi, Rekap Patroli, Pengumuman, Repositori Dokumen — gating BUG-06 terbukti tidak salah blokir Admin |
+| Activity Log (jendela 7 detik) | **4 request lalu berhenti**, sama seperti sesi Client — loop BUG-04 tertutup untuk kedua role |
+| Route admin-only | `/AdminDashboard`, `/AdminAprovalAkun`, `/AdminManageUsers` — semua terbuka |
+| Route client-only | 7 route dilempar ke `/AdminDashboard` sesuai rancangan |
+| Route shared | `/AdminManageSatpam`, `/AdminDetailSatpam`, `/ClientDetailSatpam` — tetap terbuka |
+
+**Konsekuensi BUG-08 yang perlu diketahui:** Admin sekarang tidak bisa lagi membuka
+`/AdminManagePos`, `/AdminManagePosUtama`, `/ClientManageRadius`, `/ClientGpsTracking`,
+`/ClientRiwayatPesan`, `/ClientPenjadwalanSatpam`, dan `/ClientDashboard` lewat URL
+langsung. Ini memang sesuai klasifikasi Sidebar (`hidden: role !== "client"`) dan
+`menuItems` (`allowedRoles: ["client"]`) — menunya pun tidak pernah tampil untuk Admin —
+tapi tetap perubahan perilaku dibanding sebelumnya yang membiarkan siapa pun masuk.
+
+**Catatan:** `/AdminEditDetailSatpam` ikut memantul saat dibuka langsung lewat URL, tapi
+itu **bukan** karena role guard — route itu ada di grup shared. Penyebabnya logika bawaan
+halaman itu sendiri: `const uuid = location.state?.uuid` lalu `if (!uuid) navigate(-1)`,
+karena halaman edit memang butuh `uuid` yang dioper dari tombol pemanggilnya. Perilaku
+lama, bukan regresi.
 
 Halaman yang terverifikasi sehat (render data asli, tanpa request gagal selain BUG-06):
 Manage Satpam, Manage Pos Patroli, Manage Pos Utama, Penjadwalan Satpam, Manage Radius,
