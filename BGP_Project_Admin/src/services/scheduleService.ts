@@ -19,6 +19,90 @@ const getHeaders = () => ({
 
 const DAY_CODE = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 
+/**
+ * Jadwal manual (assignment_uuid null) tidak punya "seri" resmi di BE —
+ * endpoint /shift-instances TIDAK punya filter by pattern, jadi ditarik
+ * per satpam+pos dulu (dengan `source: "manual"` supaya jadwal hasil
+ * Assignment/rrule yang kebetulan sama satpam/pos TIDAK ikut kesenggol),
+ * baru disaring ulang ke pattern yang sama di sisi FE. Dipakai bareng oleh
+ * cancelManualSeriesFrom dan updateManualSeriesRange.
+ */
+async function findManualInstances({
+  satpam_uuid,
+  pos_uuid,
+  pattern_uuid,
+  from,
+  to,
+}: {
+  satpam_uuid: string;
+  pos_uuid: string;
+  pattern_uuid: string;
+  from: string;
+  to?: string;
+}): Promise<{ uuid: string; work_date: string }[]> {
+  let cursor: string | null = null;
+  const found: { uuid: string; work_date: string }[] = [];
+
+  do {
+    const params = new URLSearchParams({
+      limit: "50",
+      satpam: satpam_uuid,
+      pos: pos_uuid,
+      source: "manual",
+      status: "scheduled",
+      from,
+    });
+    if (to) params.append("to", to);
+    if (cursor) params.append("cursor", cursor);
+
+    const res = await fetchWithAuth(`${BASE_URL_API}/shift-instances?${params.toString()}`, {
+      headers: getHeaders(),
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok)
+      throw new Error(result.error?.message || result.message || "Gagal memuat seri jadwal");
+
+    for (const item of result.data ?? []) {
+      if (item.pattern?.uuid === pattern_uuid) {
+        found.push({ uuid: item.uuid, work_date: String(item.work_date).split("T")[0] });
+      }
+    }
+    cursor = result.meta?.has_more ? result.meta.next_cursor : null;
+  } while (cursor);
+
+  return found;
+}
+
+/**
+ * Jadwal AKTIF satpam ini di satu tanggal, pos/pattern apa pun — dipakai
+ * updateManualSeriesRange buat mutuskan sebelum bikin instance baru di
+ * hari tujuan geser: kalau di situ sudah ada persis shift yang sama
+ * (pos+pattern sama), gak usah ditambahin lagi; kalau ada tapi beda,
+ * biarkan create() coba jalan — BE sendiri yang menolak (409/422) kalau
+ * jamnya bentrok, jadi overlap-nya tidak perlu dihitung ulang di sini.
+ */
+async function findActiveShiftsOnDate(
+  satpam_uuid: string,
+  date: string,
+): Promise<{ pos_uuid: string; pattern_uuid: string }[]> {
+  const params = new URLSearchParams({
+    limit: "10",
+    satpam: satpam_uuid,
+    status: "scheduled",
+    from: date,
+    to: date,
+  });
+  const res = await fetchWithAuth(`${BASE_URL_API}/shift-instances?${params.toString()}`, {
+    headers: getHeaders(),
+  });
+  const result = await res.json().catch(() => ({}));
+  if (!res.ok) return [];
+  return (result.data ?? []).map((item: any) => ({
+    pos_uuid: item.pos?.uuid,
+    pattern_uuid: item.pattern?.uuid,
+  }));
+}
+
 export const scheduleService = {
   getAll: async (
     limit: number = 50,
@@ -100,23 +184,62 @@ export const scheduleService = {
    * BE tidak punya endpoint PATCH untuk satu instance jadwal (Assignment
    * cuma bisa diubah rrule/tanggal efektifnya, bukan satpam/pos/pattern-nya
    * — lihat updateAssignmentSchema di shift.validation.mjs) — jadi "ubah"
-   * diwujudkan sebagai buat instance baru dulu, baru batalkan yang lama.
-   * Urutan ini sengaja: kalau langkah create gagal, jadwal lama tetap utuh
-   * (gagal aman), bukan bikin satpam mendadak kehilangan jadwal hari itu.
-   * Kalau instance lama itu bagian dari Assignment (rrule), cuma occurrence
-   * INI yang diganti — assignment & occurrence lain di seri yang sama
-   * tidak disentuh.
+   * diwujudkan sebagai kombinasi create + cancel. Kalau instance lama itu
+   * bagian dari Assignment (rrule), cuma occurrence INI yang diganti —
+   * assignment & occurrence lain di seri yang sama tidak disentuh.
+   *
+   * Urutannya beda tergantung apa satpamnya sama atau ganti:
+   * - Satpam BEDA: aman create instance baru dulu baru batalkan yang lama
+   *   (create gagal -> jadwal lama tetap utuh, gagal aman).
+   * - Satpam SAMA: harus batalkan yang lama DULU baru bikin yang baru,
+   *   karena BE menolak 2 jadwal aktif yang overlap buat satpam yang sama
+   *   ("This satpam already has a shift covering that window") — create
+   *   dulu di kasus ini malah selalu gagal ditolak BE. Kalau create gagal
+   *   setelah cancel, dicoba pulihkan instance lama supaya satpam tidak
+   *   sampai kehilangan jadwalnya sama sekali.
    */
   update: async (uuid: string, body: CreateJadwalBody) => {
-    const created = await scheduleService.create(body);
+    const old = await scheduleService.getById(uuid).catch(() => null);
+    const sameSatpam = old?.data?.satpam?.uuid === body.satpam_uuid;
+
+    if (!sameSatpam) {
+      const created = await scheduleService.create(body);
+      try {
+        await scheduleService.delete(uuid);
+      } catch (e: any) {
+        throw new Error(
+          `Jadwal baru berhasil dibuat, tapi jadwal lama gagal dibatalkan otomatis (${e.message || "error"}). Hapus manual jadwal lama supaya tidak dobel.`,
+        );
+      }
+      return created;
+    }
+
+    await scheduleService.delete(uuid);
     try {
-      await scheduleService.delete(uuid);
-    } catch (e: any) {
+      return await scheduleService.create(body);
+    } catch (createErr: any) {
+      const reason = createErr.message || "error";
+      if (!old?.data) throw createErr;
+
+      let recovered = false;
+      try {
+        await scheduleService.create({
+          satpam_uuid: old.data.satpam.uuid,
+          pos_uuid: old.data.pos.uuid,
+          shift_uuid: old.data.pattern.uuid,
+          tanggal: String(old.data.work_date).split("T")[0],
+        });
+        recovered = true;
+      } catch {
+        recovered = false;
+      }
+
       throw new Error(
-        `Jadwal baru berhasil dibuat, tapi jadwal lama gagal dibatalkan otomatis (${e.message || "error"}). Hapus manual jadwal lama supaya tidak dobel.`,
+        recovered
+          ? `Gagal menyimpan perubahan (${reason}) — jadwal lama sudah dipulihkan lagi, tidak ada yang hilang.`
+          : `Gagal menyimpan perubahan (${reason}), dan jadwal lama GAGAL dipulihkan. Satpam kehilangan jadwal tanggal ${String(old.data.work_date).split("T")[0]} — buat ulang manual segera.`,
       );
     }
-    return created;
   },
 
   /** Batalkan SATU jadwal (hari itu doang) — POST /shift-instances/:uuid/cancel. */
@@ -149,13 +272,8 @@ export const scheduleService = {
   },
 
   /**
-   * Jadwal yang dibuat manual (assignment_uuid null) tidak punya "seri"
-   * resmi di BE untuk dihapus sekaligus — endpoint /shift-instances TIDAK
-   * punya filter by pattern, jadi kita tarik jadwal manual milik
-   * satpam+pos yang sama dari tanggal `from` dan seterusnya, saring ulang
-   * di sisi FE ke pattern yang sama, baru batalkan satu-satu. `source:
-   * "manual"` di query sengaja dipakai supaya jadwal hasil Assignment
-   * (rrule) yang kebetulan sama satpam/pos TIDAK ikut kesenggol.
+   * Batalkan seluruh jadwal manual milik kombinasi satpam+pos+pattern yang
+   * sama, dari tanggal `from` dan seterusnya (tanpa batas akhir).
    */
   cancelManualSeriesFrom: async ({
     satpam_uuid,
@@ -168,37 +286,110 @@ export const scheduleService = {
     pattern_uuid: string;
     from: string;
   }) => {
-    let cursor: string | null = null;
-    const targets: string[] = [];
-
-    do {
-      const params = new URLSearchParams({
-        limit: "50",
-        satpam: satpam_uuid,
-        pos: pos_uuid,
-        source: "manual",
-        status: "scheduled",
-        from,
-      });
-      if (cursor) params.append("cursor", cursor);
-
-      const res = await fetchWithAuth(`${BASE_URL_API}/shift-instances?${params.toString()}`, {
-        headers: getHeaders(),
-      });
-      const result = await res.json().catch(() => ({}));
-      if (!res.ok)
-        throw new Error(result.error?.message || result.message || "Gagal memuat seri jadwal");
-
-      for (const item of result.data ?? []) {
-        if (item.pattern?.uuid === pattern_uuid) targets.push(item.uuid);
-      }
-      cursor = result.meta?.has_more ? result.meta.next_cursor : null;
-    } while (cursor);
-
-    for (const uuid of targets) {
-      await scheduleService.delete(uuid);
+    const targets = await findManualInstances({ satpam_uuid, pos_uuid, pattern_uuid, from });
+    for (const t of targets) {
+      await scheduleService.delete(t.uuid);
     }
     return { cancelled: targets.length };
+  },
+
+  /**
+   * Sinkronkan jadwal manual di rentang tanggal `from`..`to` supaya cuma
+   * ADA di hari-hari yang dicentang di "Pilih Hari" (daysOfWeek kosong =
+   * semua hari) — dipakai form Edit saat "Ubah s.d. Tanggal" diisi.
+   * Diproses per TANGGAL (bukan cuma per instance yang ketemu), supaya
+   * "geser" beneran bisa mindah ke hari yang tadinya kosong sama sekali
+   * (mis. dari "cuma Selasa" ke "cuma Rabu"), bukan cuma bisa
+   * membatalkan/mengubah instance yang SUDAH ada.
+   *
+   * Per tanggal di rentang ini:
+   * - Ada instance lama & harinya TIDAK dicentang -> dibatalkan.
+   * - Ada instance lama & harinya dicentang -> diupdate (skip kalau
+   *   datanya sama persis, biar gak cancel+create sia-sia).
+   * - TIDAK ada instance lama & harinya dicentang -> dicek dulu apa satpam
+   *   ini udah punya jadwal PERSIS sama (pos+pattern sama) di tanggal itu
+   *   (dari kombinasi lain) — kalau ya, tidak ditambahin lagi (hindari
+   *   duplikat); kalau beda, tetap dicoba dibuat, dan kalau BE menolak
+   *   karena jamnya bentrok sama shift lain di hari itu, tanggal ini
+   *   dilewati (dihitung sebagai `skipped`) tanpa menghentikan sisanya.
+   * - TIDAK ada instance lama & harinya TIDAK dicentang -> tidak diapa2in.
+   */
+  updateManualSeriesRange: async ({
+    satpam_uuid,
+    pos_uuid,
+    pattern_uuid,
+    from,
+    to,
+    daysOfWeek,
+    newBody,
+  }: {
+    satpam_uuid: string;
+    pos_uuid: string;
+    pattern_uuid: string;
+    from: string;
+    to: string;
+    daysOfWeek?: number[];
+    newBody: Omit<CreateJadwalBody, "tanggal">;
+  }) => {
+    const found = await findManualInstances({ satpam_uuid, pos_uuid, pattern_uuid, from, to });
+    const foundByDate = new Map(found.map((f) => [f.work_date, f.uuid]));
+    const allowed =
+      daysOfWeek && daysOfWeek.length > 0 && daysOfWeek.length < 7 ? new Set(daysOfWeek) : null;
+    const dataChanged =
+      newBody.satpam_uuid !== satpam_uuid ||
+      newBody.pos_uuid !== pos_uuid ||
+      newBody.shift_uuid !== pattern_uuid;
+
+    // Wall-clock lokal (bukan toISOString, yang bisa geser tanggal kalau
+    // timezone browser bukan UTC) — cukup buat baca day-of-week & format
+    // ulang jadi "YYYY-MM-DD", bukan disimpan/dikirim sebagai instant.
+    const isoDate = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+    let updated = 0;
+    let created = 0;
+    let cancelled = 0;
+    let skipped = 0;
+
+    const cursor = new Date(`${from}T00:00:00`);
+    const end = new Date(`${to}T00:00:00`);
+    while (cursor <= end) {
+      const dateStr = isoDate(cursor);
+      const isAllowed = !allowed || allowed.has(cursor.getDay());
+      const existingUuid = foundByDate.get(dateStr);
+
+      if (existingUuid) {
+        if (!isAllowed) {
+          await scheduleService.delete(existingUuid);
+          cancelled++;
+        } else if (dataChanged) {
+          await scheduleService.update(existingUuid, { ...newBody, tanggal: dateStr });
+          updated++;
+        }
+      } else if (isAllowed) {
+        // Hari tujuan geser belum punya instance dari kombinasi ASLI — tapi
+        // satpam ini bisa jadi udah punya jadwal LAIN (pos/pattern apa pun)
+        // di tanggal ini. Kalau persis sama (pos+pattern sama), gak usah
+        // ditambahin lagi (hindari duplikat). Kalau beda, tetap dicoba —
+        // BE sendiri yang menolak (409/422) kalau jamnya bentrok; ditangkap
+        // di sini supaya satu tanggal gagal tidak menghentikan sisanya.
+        const activeOnDate = await findActiveShiftsOnDate(newBody.satpam_uuid, dateStr);
+        const alreadyExact = activeOnDate.some(
+          (a) => a.pos_uuid === newBody.pos_uuid && a.pattern_uuid === newBody.shift_uuid,
+        );
+        if (!alreadyExact) {
+          try {
+            await scheduleService.create({ ...newBody, tanggal: dateStr });
+            created++;
+          } catch {
+            skipped++;
+          }
+        }
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return { updated, created, cancelled, skipped };
   },
 
   generate: async (body: GenerateJadwalBody) => {

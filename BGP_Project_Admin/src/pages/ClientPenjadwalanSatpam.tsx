@@ -12,6 +12,9 @@ import {
   useDisclosure,
   addToast,
   Spinner,
+  Checkbox,
+  RadioGroup,
+  Radio,
 } from "@heroui/react";
 import { useState, useEffect, useCallback } from "react";
 import { CalendarDate, parseDate } from "@internationalized/date";
@@ -131,6 +134,45 @@ const ClientPenjadwalanSatpam = () => {
   >({});
   const [isManualSubmitting, setIsManualSubmitting] = useState(false);
 
+  // Snapshot satpam+pos+shift ASLI pas modal Edit dibuka — dipakai buat
+  // nyari jadwal mana aja yang mau diganti kalau "Tanggal Akhir" diisi
+  // (manualData sendiri berubah begitu user ganti pilihan di form, jadi
+  // gak bisa dipakai buat nyari data lama lagi).
+  const [originalEditKey, setOriginalEditKey] = useState<{
+    satpam_uuid: string;
+    pos_uuid: string;
+    pattern_uuid: string;
+  } | null>(null);
+
+  // Hari mana aja yang kepakai kalau rentang tanggal (Tambah/Ubah s.d.)
+  // dipilih — JS Date.getDay(): 0=Minggu..6=Sabtu. Default semua kecentang
+  // (sama seperti perilaku lama sebelum fitur ini ada: rentang = tiap hari).
+  const HARI_OPTIONS = [
+    { label: "Senin", day: 1 },
+    { label: "Selasa", day: 2 },
+    { label: "Rabu", day: 3 },
+    { label: "Kamis", day: 4 },
+    { label: "Jumat", day: 5 },
+    { label: "Sabtu", day: 6 },
+    { label: "Minggu", day: 0 },
+  ];
+  const ALL_DAYS = HARI_OPTIONS.map((h) => h.day);
+  const [selectedDays, setSelectedDays] = useState<number[]>(ALL_DAYS);
+
+  // Pas Edit, "Pilih Hari" cuma boleh 1 (radio behavior) — ini geser SATU
+  // hari ke SATU hari lain, bukan pilih beberapa hari sekaligus (beda dari
+  // Tambah Jadwal yang memang multi-select buat pilih beberapa hari
+  // sekaligus di rentang tanggal baru).
+  const toggleDay = (day: number) => {
+    if (selectedJadwalUuid) {
+      setSelectedDays([day]);
+      return;
+    }
+    setSelectedDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
+    );
+  };
+
   const resetManualForm = () => {
     setManualData({
       tanggalMulai: undefined,
@@ -141,6 +183,8 @@ const ClientPenjadwalanSatpam = () => {
     });
     setManualErrors({});
     setSelectedJadwalUuid(null);
+    setOriginalEditKey(null);
+    setSelectedDays(ALL_DAYS);
   };
 
   const handleCloseManual = () => {
@@ -160,6 +204,7 @@ const ClientPenjadwalanSatpam = () => {
       shift_uuid: shiftUuid,
       tanggalMulai: parseDate(toIsoDate(currentDate)),
     }));
+    setSelectedDays([currentDate.getDay()]);
     modalManual.onOpen();
   };
 
@@ -170,12 +215,18 @@ const ClientPenjadwalanSatpam = () => {
       satpam_uuid: satpamUuid,
       tanggalMulai: parseDate(dateIso),
     }));
+    setSelectedDays([new Date(`${dateIso}T00:00:00`).getDay()]);
     modalManual.onOpen();
   };
 
   const handleEditJadwalInstance = (item: Jadwal) => {
     setSelectedJadwalUuid(item.uuid);
     setManualErrors({});
+    setOriginalEditKey({
+      satpam_uuid: item.satpam.uuid,
+      pos_uuid: item.pos.uuid,
+      pattern_uuid: item.pattern.uuid,
+    });
     setManualData({
       tanggalMulai: parseDate(String(item.work_date).split("T")[0]),
       tanggalAkhir: undefined,
@@ -183,6 +234,13 @@ const ClientPenjadwalanSatpam = () => {
       satpam_uuid: item.satpam.uuid,
       shift_uuid: item.pattern.uuid,
     });
+    // Default "Pilih Hari" cuma hari ASAL instance ini (bukan semua 7
+    // hari) — checkbox ini representasi "mau digeser ke hari apa", jadi
+    // wajarnya start dari hari yang sekarang, baru user ganti kalau mau
+    // dipindah/diperluas.
+    setSelectedDays([
+      new Date(`${String(item.work_date).split("T")[0]}T00:00:00`).getDay(),
+    ]);
     modalManual.onOpen();
   };
 
@@ -214,21 +272,55 @@ const ClientPenjadwalanSatpam = () => {
     }
 
     setIsManualSubmitting(true);
+    let skippedCount = 0;
     try {
       if (selectedJadwalUuid) {
-        await scheduleService.update(selectedJadwalUuid, {
-          satpam_uuid: manualData.satpam_uuid,
-          pos_uuid: manualData.pos_uuid,
-          shift_uuid: manualData.shift_uuid,
-          tanggal: manualData.tanggalMulai!.toString(),
-        });
+        if (manualData.tanggalAkhir && originalEditKey) {
+          // "Tanggal Akhir" diisi — geser/sinkronkan jadwal manual milik
+          // kombinasi satpam+pos+shift ASLI (sebelum diedit) dari tanggal
+          // mulai s.d. tanggal akhir ke hari-hari yang dicentang.
+          const result = await scheduleService.updateManualSeriesRange({
+            satpam_uuid: originalEditKey.satpam_uuid,
+            pos_uuid: originalEditKey.pos_uuid,
+            pattern_uuid: originalEditKey.pattern_uuid,
+            from: manualData.tanggalMulai!.toString(),
+            to: manualData.tanggalAkhir.toString(),
+            daysOfWeek: selectedDays,
+            newBody: {
+              satpam_uuid: manualData.satpam_uuid,
+              pos_uuid: manualData.pos_uuid,
+              shift_uuid: manualData.shift_uuid,
+            },
+          });
+          skippedCount = result.skipped;
+        } else {
+          await scheduleService.update(selectedJadwalUuid, {
+            satpam_uuid: manualData.satpam_uuid,
+            pos_uuid: manualData.pos_uuid,
+            shift_uuid: manualData.shift_uuid,
+            tanggal: manualData.tanggalMulai!.toString(),
+          });
+        }
       } else {
         const end = manualData.tanggalAkhir ?? manualData.tanggalMulai!;
         let cursor = manualData.tanggalMulai!;
         const dates: string[] = [];
         while (cursor.compare(end) <= 0) {
-          dates.push(cursor.toString());
+          // toDate() perlu timezone eksplisit — CalendarDate itu wall-clock
+          // tanpa zona, cukup pakai "UTC" di sini karena cuma dipakai buat
+          // baca day-of-week, bukan disimpan/dikirim ke server.
+          if (selectedDays.includes(cursor.toDate("UTC").getUTCDay())) {
+            dates.push(cursor.toString());
+          }
           cursor = cursor.add({ days: 1 });
+        }
+        if (dates.length === 0) {
+          addToast({
+            title: "Tidak Ada Tanggal",
+            description: "Tidak ada hari yang cocok dengan pilihan \"Pilih Hari\" di rentang tanggal ini.",
+            color: "warning",
+          });
+          return;
         }
         for (const tanggal of dates) {
           await scheduleService.create({
@@ -241,9 +333,12 @@ const ClientPenjadwalanSatpam = () => {
       }
 
       addToast({
-        title: "Berhasil",
-        description: `Jadwal berhasil ${selectedJadwalUuid ? "diubah" : "ditambahkan"}`,
-        color: "success",
+        title: skippedCount > 0 ? "Berhasil Sebagian" : "Berhasil",
+        description:
+          skippedCount > 0
+            ? `Jadwal diubah, tapi ${skippedCount} tanggal dilewati karena bentrok dengan jadwal lain.`
+            : `Jadwal berhasil ${selectedJadwalUuid ? "diubah" : "ditambahkan"}`,
+        color: skippedCount > 0 ? "warning" : "success",
       });
       handleCloseManual();
       fetchAllJadwal();
@@ -787,10 +882,13 @@ const ClientPenjadwalanSatpam = () => {
               />
 
               <DatePicker
-                label="Tanggal Akhir (Opsional)"
+                label={
+                  selectedJadwalUuid
+                    ? "Ubah s.d. Tanggal (Opsional)"
+                    : "Tanggal Akhir (Opsional)"
+                }
                 variant="underlined"
                 labelPlacement="inside"
-                isDisabled={!!selectedJadwalUuid}
                 isInvalid={!!manualErrors.tanggalAkhir}
                 errorMessage={manualErrors.tanggalAkhir}
                 value={manualData.tanggalAkhir}
@@ -825,6 +923,41 @@ const ClientPenjadwalanSatpam = () => {
                   </SelectItem>
                 ))}
               </Select>
+            </div>
+
+            {/* Cuma relevan kalau ada rentang tanggal (Tanggal Akhir/Ubah
+                s.d. Tanggal diisi). Tambah: multi-select (pilih beberapa
+                hari buat dibuatkan jadwal baru sekaligus). Edit: cuma 1
+                (radio) — ini geser SATU hari ke SATU hari lain, bukan
+                sinkronisasi banyak hari sekaligus. */}
+            <div className="px-3 pb-2">
+              <p className="text-sm text-[#6B6B6B] mb-2">Pilih Hari</p>
+              {selectedJadwalUuid ? (
+                <RadioGroup
+                  orientation="horizontal"
+                  value={String(selectedDays[0] ?? "")}
+                  onValueChange={(v) => toggleDay(Number(v))}
+                  classNames={{ wrapper: "flex flex-wrap gap-4" }}
+                >
+                  {HARI_OPTIONS.map(({ label, day }) => (
+                    <Radio key={day} value={String(day)}>
+                      {label}
+                    </Radio>
+                  ))}
+                </RadioGroup>
+              ) : (
+                <div className="flex flex-wrap gap-4">
+                  {HARI_OPTIONS.map(({ label, day }) => (
+                    <Checkbox
+                      key={day}
+                      isSelected={selectedDays.includes(day)}
+                      onValueChange={() => toggleDay(day)}
+                    >
+                      {label}
+                    </Checkbox>
+                  ))}
+                </div>
+              )}
             </div>
           </ModalBody>
           <ModalFooter className="flex justify-center pb-8">
