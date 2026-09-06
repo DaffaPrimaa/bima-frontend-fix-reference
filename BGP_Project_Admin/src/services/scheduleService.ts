@@ -247,6 +247,8 @@ export const scheduleService = {
         const assignment = assignmentRes.data || assignmentRes;
         const effectiveFrom: string = assignment.effective_from;
         const satpamUuid: string = assignment.satpam_uuid || assignment.satpam?.uuid;
+        const posUuid: string = assignment.pos_uuid || assignment.pos?.uuid;
+        const patternUuid: string = assignment.pattern_uuid || assignment.pattern?.uuid;
 
         if (!effectiveFrom || effectiveFrom >= targetDateStr) {
           await fetchWithAuth(`${BASE_URL_API}/shift-assignments/${assignmentUuid}`, {
@@ -274,9 +276,17 @@ export const scheduleService = {
             { headers: getHeaders() }
           );
           const listData = await listRes.json().catch(() => ({ data: [] }));
-          const successors = (listData.data || []).filter(
-            (a: any) => a.uuid !== assignmentUuid && (a.effective_from || "") >= targetDateStr
-          );
+          // Penerus HARUS kombinasi yang sama persis (satpam + pos + pattern).
+          // Kalau cuma disaring per satpam, hapus "ke depannya" pada satu
+          // jadwal bisa ikut menghapus jadwal satpam itu di pos/shift lain
+          // yang sama sekali tidak disentuh admin.
+          const successors = (listData.data || []).filter((a: any) => {
+            if (a.uuid === assignmentUuid) return false;
+            if ((a.effective_from || "") < targetDateStr) return false;
+            const aPos = a.pos_uuid || a.pos?.uuid;
+            const aPattern = a.pattern_uuid || a.pattern?.uuid;
+            return aPos === posUuid && aPattern === patternUuid;
+          });
           for (const succ of successors) {
             await fetchWithAuth(`${BASE_URL_API}/shift-assignments/${succ.uuid}`, {
               method: "DELETE",
