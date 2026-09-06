@@ -110,7 +110,7 @@ activityLogFormatter.ts(5,3): error TS6133: 'AiOutlineUpload' is declared but it
 
 ---
 
-## 🔴 Belum diperbaiki (masih ada di prod & di repo ini)
+## 🟢 Sudah diperbaiki di repo ini (masih ada di prod)
 
 ### BUG-04 — Activity Log: infinite fetch loop, ±84 request / 3 detik
 
@@ -143,9 +143,14 @@ berulang-ulang** — bukan pagination yang maju, murni loop.
 **Cakupan dampak:** menu "Activity Log" di `src/Components/Sidebar.tsx` **tidak punya flag
 `hidden`**, jadi tampil dan bisa diklik oleh **Admin maupun Client**.
 
-**Arah perbaikan:** keluarkan `historyCursor` dari dependency `fetchData` (baca lewat
-`useRef` atau functional update), atau jangan panggil `setHistoryCursor` kalau cursor-nya
-tidak benar-benar berubah.
+**Perbaikan di repo ini** (commit `708abc3`): `historyCursor` diubah dari `useState`
+menjadi `useRef` — nilainya memang tidak pernah dirender, hanya dibaca di dalam
+`fetchData` — lalu dikeluarkan dari dependency array. Rantai sebab-akibatnya putus tanpa
+mengubah perilaku pagination.
+
+**Terverifikasi:** buka `/ClientActivityLog`, hitung request selama 7 detik →
+**4 request lalu berhenti** (2 endpoint, digandakan React StrictMode di mode dev), dari
+sebelumnya 84 dan terus bertambah.
 
 ---
 
@@ -186,8 +191,23 @@ pulau legacy yang polanya **persis sama dengan BUG-01** — sudah tidak ada di S
 (komentar `manage-waktu` di `Sidebar.tsx` baris 86–92), tapi route-nya masih hidup di
 `App.tsx` dan masih dirujuk `menuItems.tsx` baris 75.
 
-**Dua pilihan perbaikan:** hapus sekalian pulaunya (konsisten dengan BUG-01), atau
-betulkan prefix jadi `${BASE_URL_API}/shifts/...` kalau halamannya memang masih dipakai.
+**Perbaikan di repo ini** (commit `ae0f681`): pulaunya dihapus, konsisten dengan BUG-01.
+Terverifikasi entitasnya memang sama persis (`nama` + jam mulai + jam selesai + timezone,
+cuma beda nama field), form modalnya bahkan copy-paste dengan judul identik
+`"Edit Waktu Jadwal"`, dan `ShiftConfigSection` adalah superset — punya search dan
+page-size yang tidak dimiliki halaman lama.
+
+Yang dihapus: `AdminManageWaktuJadwal.tsx`, `useShiftData.ts`, `useShiftForm.ts`,
+`Components/shifts/ShiftTable.tsx`, `Components/shifts/ShiftFormModal.tsx`,
+`services/shiftService.ts`, `types/shift.ts` — beserta route + import di `App.tsx`, kartu
+menu di `menuItems.tsx`, dan komentar mati di `Sidebar.tsx`. `ShiftTableNew.tsx`
+dipertahankan (masih dipakai `ShiftConfigSection`).
+
+Sekalian: `ShiftConfigSection` sekarang mengoper `isLoading` ke `DeleteConfirmationModal`
+supaya tombol hapus tidak bisa diklik dua kali.
+
+**Terverifikasi:** `/AdminManageWaktu` jatuh ke halaman 404, dan tab "Atur Shift" tetap
+berfungsi (`GET /shift-patterns → 200`, 5 baris shift tampil).
 
 ---
 
@@ -221,8 +241,21 @@ tapi FE memanggilnya tanpa mengecek role — kemungkinan untuk mengisi dropdown 
 tiap load menghasilkan request gagal beruntun, dan filter client-nya kosong tanpa
 keterangan apa pun ke pengguna.
 
-**Arah perbaikan:** panggil `/client` hanya kalau role = admin; sembunyikan dropdown
-filter client untuk role Client.
+**Perbaikan di repo ini** (commit `ddfe6dc`): pemanggilan `/client` dijaga dengan
+`getRole() !== "admin"` di lima titik — `useAttendanceData`, `usePatroliData`,
+`useAnnouncementData`, `AdminRepositoriDokumen` (fetch awal + load more), dan
+`useSharedDocumentForm`. Pengecekan memakai `getRole()` langsung (bukan state `userRole`)
+supaya tidak ada celah waktu pada render pertama.
+
+Titik yang **sengaja tidak** digating karena memang pemakaian sah oleh Admin:
+`useApprovalAkun`, `useMitraAssignment`, `useUserManagement`.
+
+Sekalian: `satpamService.getMitraOptions` sekarang mengecek `res.ok` dan melempar error —
+sebelumnya body 403 diperlakukan seperti sukses sehingga dropdown diam-diam kosong tanpa
+jejak.
+
+**Terverifikasi** (login sebagai Client): keempat halaman di tabel atas kini **nol**
+panggilan `/client`, nol request gagal, dan data utamanya tetap tampil.
 
 ---
 
@@ -255,8 +288,20 @@ langsung dari sesi login asli:
 Sekarang tidak terasa **hanya karena** `filteredMenuItems` tidak pernah dirender (lihat
 catatan di BUG-03). Ini ranjau yang meledak begitu ada yang memakai hook itu.
 
-**Arah perbaikan:** samakan sumber & casing role — bandingkan setelah `.toLowerCase()`,
-seperti yang sudah dilakukan `src/Auth/Login.tsx` baris 132 (`userRole?.toLowerCase()`).
+**Perbaikan di repo ini** (commit `ae0f681`): dinormalkan di sumbernya, bukan dengan
+menyisir ~25 titik perbandingan.
+
+1. `getRole()` di `Utils/helpers.ts` sekarang selalu mengembalikan huruf kecil, sehingga
+   semua pemanggil yang membandingkan dengan literal huruf kecil langsung tahan casing.
+   Fallback `localStorage.getItem("role")` yang mati ikut dibuang (tidak ada kode yang
+   pernah menulisnya).
+2. `Sidebar.tsx` tidak lagi mem-parse cookie sendiri, memakai `getRole()`.
+3. `allowedRoles` di `menuItems.tsx` diturunkan jadi huruf kecil.
+4. `useDashboard.ts` membandingkan dengan `user.role?.toLowerCase()` — sumbernya JWT,
+   bukan cookie, jadi tetap perlu dinormalkan terpisah.
+5. `Login.tsx` menulis cookie role dalam huruf kecil sejak awal.
+
+**Terverifikasi:** sidebar role Client tetap lengkap (16 menu).
 
 ---
 
@@ -279,8 +324,30 @@ lewat URL langsung — misalnya akun Client membuka `/AdminManageUsers`, atau se
 Sidebar memang menyembunyikan menunya, tapi itu cuma sembunyi tampilan, bukan proteksi.
 
 **Mitigasi yang sudah ada:** BE menolak request-nya (terbukti dari 403 di BUG-06), jadi
-data sensitif tidak bocor — halamannya cuma tampil kosong/gagal. Tetap perlu role guard
-di FE supaya perilakunya jelas dan tidak membingungkan.
+data sensitif tidak bocor — halamannya cuma tampil kosong/gagal.
+
+**Perbaikan di repo ini** (commit `ae0f681`): ditambahkan `src/Utils/RequireRole.tsx`,
+komponen route-element bergaya sama dengan `PrivateRoute`, dipasang sebagai route
+pembungkus di dalam `Mainlayouts` supaya sidebar tetap tampil. Role yang tidak diizinkan
+dilempar ke dashboard miliknya sendiri, bukan ke halaman error, supaya tidak nyangkut.
+
+Cakupannya sengaja **konservatif** — hanya route yang Sidebar dan `menuItems` sama-sama
+sepakat:
+
+- `allow={["admin"]}` → `/AdminDashboard`, `/AdminAprovalAkun`, `/AdminManageUsers`
+- `allow={["client"]}` → `/ClientDashboard`, `/ClientPenjadwalanSatpam`,
+  `/AdminManagePos`, `/AdminManagePosUtama`, `/ClientManageRadius`, `/ClientGpsTracking`,
+  `/ClientRiwayatPesan`
+
+Route yang perannya cuma tersirat (`/AdminDetailSatpam`, `/AdminEditDetailSatpam`,
+`/ClientDetailSatpam`) dibiarkan shared — klasifikasinya hasil inferensi, dan risiko
+salah-kunci lebih mahal daripada manfaatnya.
+
+Ini gerbang tampilan, **bukan** pengganti otorisasi BE.
+
+**Terverifikasi** (login sebagai Client): `/AdminManageUsers`, `/AdminAprovalAkun`, dan
+`/AdminDashboard` dilempar ke `/ClientDashboard`; route client-only dan shared tetap bisa
+dibuka.
 
 ---
 
@@ -302,7 +369,7 @@ Konsisten dengan dihapusnya `dashboardService.ts`, `alertService.ts`, dan
 
 ---
 
-## Risiko desain pada PR #118 (belum jadi bug, tapi perlu diawasi)
+## 🟢 Risiko desain pada PR #118 — sudah ditangani di repo ini
 
 **Lokasi di prod:** `BGP_Project_Admin/src/services/scheduleService.ts`, cabang
 `delete(..., mode: "future")` — di repo ini ada di baris **273–280**
@@ -328,7 +395,9 @@ seterusnya" pada **satu** jadwal berpotensi ikut menghapus assignment satpam itu
 target. Makin sering fitur edit "mulai hari ini & seterusnya" dipakai, makin besar
 peluang kejadian.
 
-**Saran:** saring penerus dengan kombinasi satpam **+ pos + pattern**, bukan satpam saja.
+**Perbaikan di repo ini** (commit `743b5b7`): penerus disaring dengan kombinasi satpam
+**+ pos + pattern**. `pos_uuid` dan `pattern_uuid` diambil dari assignment yang sedang
+dihapus (sudah tersedia dari `getAssignmentById` di cabang yang sama).
 
 ---
 
@@ -370,14 +439,19 @@ npm run build
 | BUG-01 | Halaman shift legacy bikin `tsc -b` gagal (11 error) | Tinggi | 🟢 Diperbaiki |
 | BUG-02 | Import `AiOutlineUpload` tidak terpakai | Rendah | 🟢 Diperbaiki |
 | BUG-03 | Link menu ke halaman terhapus + komentar mati | Rendah | 🟢 Diperbaiki |
-| BUG-04 | Activity Log infinite fetch loop (84 req/3 dtk) | **Kritis** | 🔴 Belum |
-| BUG-05 | `shiftService` `/v1/` dobel → semua endpoint 404 | Tinggi | 🔴 Belum |
-| BUG-06 | `GET /client` 403 berulang saat role Client | Sedang | 🔴 Belum |
-| BUG-07 | Casing role tidak konsisten (laten, di dead code) | Rendah | 🔴 Belum |
-| BUG-08 | Tidak ada role guard di `PrivateRoute` | Sedang | 🔴 Belum |
+| BUG-04 | Activity Log infinite fetch loop (84 req/3 dtk) | **Kritis** | 🟢 Diperbaiki |
+| BUG-05 | `shiftService` `/v1/` dobel → semua endpoint 404 | Tinggi | 🟢 Diperbaiki |
+| BUG-06 | `GET /client` 403 berulang saat role Client | Sedang | 🟢 Diperbaiki |
+| BUG-07 | Casing role tidak konsisten (laten, di dead code) | Rendah | 🟢 Diperbaiki |
+| BUG-08 | Tidak ada role guard di `PrivateRoute` | Sedang | 🟢 Diperbaiki |
+| — | Scoping successor PR #118 (hapus lintas pos/shift) | Sedang | 🟢 Diperbaiki |
+
+**Status:** kedelapan bug sudah diperbaiki di repo ini; **semuanya masih ada di prod**.
 
 **Cakupan audit runtime:** seluruh halaman yang terlihat oleh role **Client** sudah
-ditelusuri langsung ke BE production. Sweep untuk role **Admin** belum dijalankan.
+ditelusuri langsung ke BE production, sebelum dan sesudah perbaikan. Sweep untuk role
+**Admin** belum dijalankan — perlu login sebagai Admin, terutama untuk memastikan guard
+BUG-08 tidak salah mengunci halaman yang seharusnya boleh dibuka Admin.
 
 Halaman yang terverifikasi sehat (render data asli, tanpa request gagal selain BUG-06):
 Manage Satpam, Manage Pos Patroli, Manage Pos Utama, Penjadwalan Satpam, Manage Radius,
