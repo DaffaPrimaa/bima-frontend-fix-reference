@@ -165,16 +165,32 @@ sebelumnya 84 dan terus bertambah.
 const res = await fetchWithAuth(`${BASE_URL_API}/v1/shifts/?pid=${page}`, { ... });
 ```
 
-**Akar masalah:** `BASE_URL_API` (`VITE_API_BASE_URL`) sudah berakhiran `/api/v1`,
-lalu ditambah lagi `/v1/shifts/` → URL akhirnya:
+**Akar masalah:** ada dua lapis, dan lapis keduanya lebih menentukan.
+
+*Lapis 1 — prefix dobel.* `BASE_URL_API` (`VITE_API_BASE_URL`) sudah berakhiran
+`/api/v1`, lalu ditambah lagi `/v1/shifts/` → URL akhirnya:
 
 ```
 https://teambgs.ninja/api/v1/v1/shifts/?pid=1   →   404 Not Found
 ```
 
-Terverifikasi langsung: membuka `/AdminManageWaktu` menghasilkan 2× `404`. Semua
-operasi CRUD di service ini (getAll, getById, create, update, delete) kena, karena
-kelimanya salah prefix.
+*Lapis 2 — resource-nya sendiri sudah tidak ada.* Membetulkan prefix **tidak akan
+menolong**. Diprobe langsung ke BE production dengan token asli:
+
+```
+GET /api/v1/shifts        → 404  {"error":{"code":"NOT_FOUND",
+                                   "message":"No route for GET /api/v1/shifts"}}
+GET /api/v1/shifts/?pid=1 → 404  (pesan sama)
+```
+
+Bandingkan dengan endpoint karangan `/api/v1/endpoint-ngawur-tidak-ada` yang
+mengembalikan bentuk error **persis sama** — artinya `/shifts` memang bukan route yang
+dikenal BE, bukan sekadar salah parameter. Resource ini sudah digantikan
+`/shift-patterns`.
+
+Jadi `shiftService` bukan "salah tulis URL", melainkan **kode sisa yang ditulis untuk
+versi API lama**. Semua operasi CRUD-nya (getAll, getById, create, update, delete) mati,
+dan tidak ada perbaikan sisi FE yang bisa menghidupkannya tanpa kerja di BE.
 
 **File yang ikut mati:**
 
@@ -398,6 +414,51 @@ peluang kejadian.
 **Perbaikan di repo ini** (commit `743b5b7`): penerus disaring dengan kombinasi satpam
 **+ pos + pattern**. `pos_uuid` dan `pattern_uuid` diambil dari assignment yang sedang
 dihapus (sudah tersedia dari `getAssignmentById` di cabang yang sama).
+
+**Bentuk respons BE — sudah diverifikasi, bukan asumsi.** Baik endpoint list
+(`GET /shift-assignments`) maupun detail (`GET /shift-assignments/:uuid`) mengembalikan
+objek **bersarang**, bukan field datar:
+
+```json
+{ "uuid": "...", "rrule": "...", "effective_from": "...", "effective_to": null,
+  "pattern": { "uuid": "...", "nama": "Shift malam", ... },
+  "pos":     { "uuid": "...", "nama": "rumah faried", ... },
+  "satpam":  { "uuid": "...", "nama": "...", "nip": "..." } }
+```
+
+Tidak ada `pos_uuid` / `pattern_uuid` / `satpam_uuid` datar sama sekali. Pola
+`a.pos_uuid || a.pos?.uuid` menangani keduanya, jadi pembacaannya aman — tapi ini wajib
+dicek, karena kalau field-nya tidak terbaca filter akan mengembalikan **nol** penerus dan
+justru menghidupkan lagi bug "hapus tidak tuntas" yang diperbaiki PR #118.
+
+**Disimulasikan pada data production** (read-only, tidak ada yang dihapus), membandingkan
+filter lama vs baru:
+
+| Skenario | Versi prod (satpam saja) | Versi repo ini (satpam+pos+pattern) |
+|---|---|---|
+| Satpam "Alma" punya 3 shift berbeda di pos & tanggal yang sama; hapus "ke depannya" pada *Shift malam* | ikut menghapus **2 jadwal tak terkait** (`sekarang`, `Shift Pagi`) | **nol** — hanya yang diklik |
+| Satpam "satpam 1", hapus *Shift malam* mulai 14 Sep, sementara ada *Shift malam* lain mulai 2 Nov | menghapus **3**, termasuk 2 jadwal `sekarang` yang tak terkait | **tepat 1** — `Shift malam / 2026-11-02`, penerus yang sah |
+
+Baris kedua penting: hasilnya **bukan nol**, yang membuktikan filternya tidak
+kesempitan — niat asli PR #118 (penerus tetap dibersihkan) tetap jalan, sekaligus
+membuktikan `pos?.uuid` dan `pattern?.uuid` memang terbaca.
+
+---
+
+## Model role menurut BE (hasil probe langsung)
+
+Diprobe dengan token **Admin** asli:
+
+| Endpoint | Respons untuk Admin |
+|---|---|
+| `GET /shift-patterns` | `403 FORBIDDEN — "Insufficient role for this action"` |
+| `GET /shift-assignments` | `403 FORBIDDEN` (sama) |
+| `GET /client` | `200` |
+
+Artinya seluruh domain shift memang **client-only menurut BE sendiri**, dan `/client`
+memang **admin-only**. Ini mengonfirmasi dua hal secara independen: klasifikasi route
+client-only di BUG-08 bukan sekadar tebakan dari Sidebar, dan gating `/client` di BUG-06
+memang sejalan dengan otorisasi BE — bukan menutupi gejala.
 
 ---
 
