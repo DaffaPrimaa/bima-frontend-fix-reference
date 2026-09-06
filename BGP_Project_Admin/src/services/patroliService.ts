@@ -1,5 +1,5 @@
 import { fetchWithAuth } from "../Utils/fetchWithAuth";
-import type { PatroliResponse, UpdatePatroliPayload } from "../types/patroli";
+import type { Patroli, PatroliResponse, UpdatePatroliPayload } from "../types/patroli";
 import { getToken } from "../Utils/helpers";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -10,30 +10,27 @@ const getHeaders = () => ({
 });
 
 export const patroliService = {
-  getAll: async (paramsObj: {
-    limit?: number;
-    cursor?: string | null;
-    search?: string;
-    status?: string;
-    satpam?: string;
-    pos?: string;
-    from?: string;
-    to?: string;
-  } = {}): Promise<PatroliResponse> => {
-    const limit = paramsObj.limit ?? 12;
-    const params = new URLSearchParams({ limit: limit.toString() });
-    if (paramsObj.cursor) params.append("cursor", paramsObj.cursor);
-    if (paramsObj.search) params.append("search", paramsObj.search);
-    if (paramsObj.status) params.append("status", paramsObj.status);
-    if (paramsObj.satpam) params.append("satpam", paramsObj.satpam);
-    if (paramsObj.pos) params.append("pos", paramsObj.pos);
-    if (paramsObj.from) params.append("from", paramsObj.from);
-    if (paramsObj.to) params.append("to", paramsObj.to);
+  getAll: async (
+    limit: number = 20, cursor?: string | null, search?: string, client?: string, status?: string): Promise<PatroliResponse> => {
+    const params = new URLSearchParams();
+    if (limit) params.append("limit", limit.toString());
+    if (cursor) params.append("cursor", cursor);
+    if (search) params.append("search", search);
+    if (client && client !== "all") params.append("client", client);
+    if (status && status !== "all") params.append("status", status);
 
     const res = await fetchWithAuth(`${BASE_URL}/patrols?${params.toString()}`, {
-      headers: getHeaders(),
+      headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (!res.ok) throw new Error("Gagal memuat data patroli");
+    return res.json();
+  },
+
+  getById: async (uuid: string): Promise<{ data: Patroli }> => {
+    const res = await fetchWithAuth(`${BASE_URL}/patrols/${uuid}`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) throw new Error("Gagal mengambil detail data patroli");
     return res.json();
   },
 
@@ -46,17 +43,16 @@ export const patroliService = {
       headers: getHeaders(),
       body: JSON.stringify(payload),
     });
-    const result = await res.json().catch(() => ({}));
-    if (!res.ok)
-      throw new Error(result.error?.message || result.message || "Gagal update data");
+    if (!res.ok) throw new Error("Gagal update data");
   },
 
   export: async (): Promise<Blob> => {
     const res = await fetchWithAuth(`${BASE_URL}/patrols/export`, {
       method: "GET",
-      headers: getHeaders(),
+      headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (!res.ok) throw new Error("Gagal mengunduh file");
     return res.blob();
   },
+
 };

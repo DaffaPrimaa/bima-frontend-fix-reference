@@ -7,6 +7,8 @@ export interface SatpamOption {
 }
 
 export interface ShiftOption {
+  end_local: any;
+  start_local: any;
   uuid: string;
   nama: string;
   mulai: string;
@@ -24,12 +26,12 @@ export interface Jadwal {
   starts_at: string;
   ends_at: string;
   status: "scheduled" | "cancelled" | "completed";
-  satpam: { uuid: string; nama: string; nip: string };
+  satpam: { uuid: string; nama: string; nip: string; jabatan?: string };
   pattern: { uuid: string; nama: string; timezone: string };
   pos: { uuid: string; nama: string };
-  // Null kalau jadwal ini dibuat manual (bukan dari pola rrule) — lihat
-  // shift-instance.service.mjs toPublicInstance.
-  assignment_uuid?: string | null;
+  assignment?: { uuid: string };
+  assignment_uuid?: string;
+  recurrence_id?: string;
 }
 
 export interface ScheduleResponse {

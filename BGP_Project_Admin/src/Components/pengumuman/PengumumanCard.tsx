@@ -49,29 +49,31 @@ export const PengumumanCard = ({
             </div>
           </div>
           <h2 className="text-xs">{item.description}</h2>
-          <div className="assign-to">
-            <h2 className="text-xs bg-[#DBEAFE] px-3 py-1 border border-[#122C93] font-light rounded-full">
-              {item.recipient_type === "all_client" ? "Seluruh Satpam" : "Client"}
-            </h2>
-          </div>
         </div>
       </div>
-      {!hideActions && (
-        <div className="flex justify-center gap-2">
-          <button
-            className="border border-[#C7D2FE] text-[#122C93] rounded-lg p-2 hover:bg-[#F5F7FF] cursor-pointer"
-            onClick={() => onPressEdit && onPressEdit(item)}
-          >
-            <FaRegEdit className="text-base" />
-          </button>
-          <button
-            className="border border-[#C7D2FE] text-[#A70202] rounded-lg p-2 hover:bg-[#FDEDED] cursor-pointer"
-            onClick={() => onPressDelete && onPressDelete(item)}
-          >
-            <FaRegTrashAlt className="text-base" />
-          </button>
+      <div className="right-side flex flex-col items-end gap-3 justify-between">
+        {!hideActions && (
+          <div className="flex justify-center gap-2">
+            <button
+              className="border border-[#C7D2FE] text-[#122C93] rounded-lg p-2 hover:bg-[#F5F7FF] cursor-pointer"
+              onClick={() => onPressEdit && onPressEdit(item)}
+            >
+              <FaRegEdit className="text-base" />
+            </button>
+            <button
+              className="border border-[#C7D2FE] text-[#A70202] rounded-lg p-2 hover:bg-[#FDEDED] cursor-pointer"
+              onClick={() => onPressDelete && onPressDelete(item)}
+            >
+              <FaRegTrashAlt className="text-base" />
+            </button>
+          </div>
+        )}
+        <div className="assign-to mt-auto">
+          <h2 className="text-xs bg-[#DBEAFE] px-3 py-1 border border-[#122C93] font-light rounded-full whitespace-nowrap">
+            {item.recipient_type === "all_client" ? "Seluruh Satpam" : "Client"}
+          </h2>
         </div>
-      )}
+      </div>
     </div>
   );
 };

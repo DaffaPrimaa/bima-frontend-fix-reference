@@ -11,6 +11,7 @@ import {
   CheckboxGroup,
   Checkbox,
 } from "@heroui/react";
+import { InfiniteScrollTrigger } from "../common/InfiniteScrollTrigger";
 import type { useGenerateSchedule } from "../../hooks/useGenerateSchedule";
 import type {
   SatpamOption,
@@ -25,8 +26,17 @@ interface GenerateScheduleModalProps {
   hook: ReturnType<typeof useGenerateSchedule>;
   options: {
     listSatpam: SatpamOption[];
+    hasMoreSatpam: boolean;
+    isLoadingSatpam: boolean;
+    loadMoreSatpam: () => void;
     listShift: ShiftOption[];
+    hasMoreShift: boolean;
+    isLoadingShift: boolean;
+    loadMoreShift: () => void;
     listPos: PosOption[];
+    hasMorePos: boolean;
+    isLoadingPos: boolean;
+    loadMorePos: () => void;
   };
 }
 
@@ -39,7 +49,11 @@ export const GenerateScheduleModal = ({
   const { generateState, setGenerateData, setErrors, handleGenerateSubmit } =
     hook;
   const { generateData, errors, isSubmitting } = generateState;
-  const { listSatpam, listShift, listPos } = options;
+  const { 
+    listSatpam, hasMoreSatpam, isLoadingSatpam, loadMoreSatpam,
+    listShift, hasMoreShift, isLoadingShift, loadMoreShift,
+    listPos, hasMorePos, isLoadingPos, loadMorePos 
+  } = options;
 
   return (
     <Modal
@@ -104,6 +118,15 @@ export const GenerateScheduleModal = ({
                   if (errors.pos_uuid)
                     setErrors({ ...errors, pos_uuid: undefined });
                 }}
+                listboxProps={{
+                  bottomContent: (
+                    <InfiniteScrollTrigger
+                      hasMore={hasMorePos}
+                      isLoading={isLoadingPos}
+                      onLoadMore={loadMorePos}
+                    />
+                  ),
+                }}
               >
                 {listPos.map((p) => (
                   <SelectItem key={p.uuid} textValue={p.nama}>
@@ -131,6 +154,15 @@ export const GenerateScheduleModal = ({
                   if (errors.satpam_uuid)
                     setErrors({ ...errors, satpam_uuid: undefined });
                 }}
+                listboxProps={{
+                  bottomContent: (
+                    <InfiniteScrollTrigger
+                      hasMore={hasMoreSatpam}
+                      isLoading={isLoadingSatpam}
+                      onLoadMore={loadMoreSatpam}
+                    />
+                  ),
+                }}
               >
                 {listSatpam.map((s) => (
                   <SelectItem key={s.uuid} textValue={`${s.nama} - ${s.nip}`}>
@@ -156,6 +188,15 @@ export const GenerateScheduleModal = ({
                   });
                   if (errors.shift_uuid)
                     setErrors({ ...errors, shift_uuid: undefined });
+                }}
+                listboxProps={{
+                  bottomContent: (
+                    <InfiniteScrollTrigger
+                      hasMore={hasMoreShift}
+                      isLoading={isLoadingShift}
+                      onLoadMore={loadMoreShift}
+                    />
+                  ),
                 }}
               >
                 {listShift.map((s) => (

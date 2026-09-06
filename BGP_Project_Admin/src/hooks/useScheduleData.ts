@@ -6,11 +6,9 @@ import { addToast } from "@heroui/react";
 export const useScheduleData = () => {
   const [dataJadwal, setDataJadwal] = useState<Jadwal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const limit = 12;
-  const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([null]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const rowsPerPage = 12;
 
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTargetUuid, setDeleteTargetUuid] = useState<string | null>(null);
@@ -19,16 +17,14 @@ export const useScheduleData = () => {
   const fetchJadwal = useCallback(async () => {
     setIsLoading(true);
     try {
-      const cursor = cursorHistory[currentIndex];
-      const result = await scheduleService.getAll(limit, cursor);
-      if (result && Array.isArray(result.data)) {
-        setDataJadwal(result.data);
-        setHasMore(result.meta?.has_more ?? false);
-        setNextCursor(result.meta?.next_cursor ?? null);
+      const result = await scheduleService.getAll(page);
+      if (result.data && Array.isArray(result.data.data)) {
+        setDataJadwal(result.data.data);
+        if (result.data.pagination) {
+          setTotalPages(result.data.pagination.total_pages);
+        }
       } else {
         setDataJadwal([]);
-        setHasMore(false);
-        setNextCursor(null);
       }
     } catch (error: any) {
       console.error(error);
@@ -39,16 +35,11 @@ export const useScheduleData = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentIndex, cursorHistory]);
+  }, [page]);
 
   useEffect(() => {
     fetchJadwal();
   }, [fetchJadwal]);
-
-  const resetPagination = (_page?: number) => {
-    setCursorHistory([null]);
-    setCurrentIndex(0);
-  };
 
   const confirmDelete = (uuid: string) => {
     setDeleteTargetUuid(uuid);
@@ -79,30 +70,9 @@ export const useScheduleData = () => {
     }
   };
 
-  const handleNextPage = () => {
-    if (hasMore && nextCursor) {
-      if (currentIndex === cursorHistory.length - 1) {
-        setCursorHistory((prev) => [...prev, nextCursor]);
-      }
-      setCurrentIndex((prev) => prev + 1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (currentIndex > 0) setCurrentIndex((prev) => prev - 1);
-  };
-
   return {
-    data: {
-      dataJadwal,
-      isLoading,
-      currentPage: currentIndex + 1,
-      hasMore,
-      rowsPerPage: limit,
-    },
-    setPage: resetPagination,
-    handleNextPage,
-    handlePrevPage,
+    data: { dataJadwal, isLoading, page, totalPages, rowsPerPage },
+    setPage,
     refreshData: fetchJadwal,
     deleteState: {
       isOpen: isDeleteModalOpen,

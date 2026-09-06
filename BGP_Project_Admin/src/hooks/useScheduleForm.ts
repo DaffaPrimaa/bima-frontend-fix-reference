@@ -74,13 +74,19 @@ export const useScheduleForm = ({
   useEffect(() => {
     if (!rawBackendData) return;
     const item = rawBackendData;
-    const foundSatpam = listSatpam.find((s) => s.uuid === item.satpam?.uuid);
-    const foundPos = listPos.find((p) => p.uuid === item.pos?.uuid);
-    const foundShift = listShift.find((s) => s.uuid === item.pattern?.uuid);
+    const foundSatpam = listSatpam.find(
+      (s) => s.nama.toLowerCase() === item.satpam_name?.toLowerCase(),
+    );
+    const foundPos = listPos.find(
+      (p) => p.nama.toLowerCase() === item.nama_pos?.toLowerCase(),
+    );
+    const foundShift = listShift.find(
+      (s) => s.nama.toLowerCase() === item.shift_nama?.toLowerCase(),
+    );
     let parsedDate = null;
-    if (item.work_date) {
+    if (item.tanggal) {
       try {
-        const dateStr = String(item.work_date).split("T")[0];
+        const dateStr = String(item.tanggal).split("T")[0];
         parsedDate = parseDate(dateStr);
       } catch (e) {
         console.error(e);

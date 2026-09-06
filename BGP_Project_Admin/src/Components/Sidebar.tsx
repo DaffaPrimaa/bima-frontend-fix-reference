@@ -171,7 +171,7 @@ const Sidebar = () => {
       key: "acivity-log",
       name: "Activity Log",
       icon: <IoMdPulse className="text-xl" />,
-      path: role === "client" ? "/ClientActivityLog" : "/AdminActivityLog",
+      path: "/ClientActivityLog",
     },
   ];
 

@@ -10,7 +10,7 @@ interface UsePatroliFormProps {
 
 export const usePatroliForm = ({ onSuccess, onClose }: UsePatroliFormProps) => {
   const [formData, setFormData] = useState<UpdatePatroliPayload>({
-    status: undefined,
+    status: "",
     description: "",
   });
   const [selectedUuid, setSelectedUuid] = useState<string | null>(null);

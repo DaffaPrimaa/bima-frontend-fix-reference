@@ -1,20 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import {
-  DateRangePicker,
-  Button,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  useDisclosure,
-  Select,
-  SelectItem,
-  Textarea,
-  Input,
-  addToast,
-} from "@heroui/react";
-import { FiSearch, FiPlus } from "react-icons/fi";
+import { DateRangePicker, Select, SelectItem, Spinner, Tooltip } from "@heroui/react";
+import { FiSearch } from "react-icons/fi";
 import {
   Table,
   TableHeader,
@@ -23,13 +8,9 @@ import {
   TableRow,
   TableCell,
   Pagination,
-  Spinner,
 } from "@heroui/react";
-import { messageService } from "../services/messageService";
-import { satpamService } from "../services/satpamService";
+import { useMessageData } from "../hooks/useMessageData";
 import { formatDateTimeZone } from "../Utils/helpers";
-import type { Message } from "../types/message";
-import type { Satpam } from "../types/satpam";
 
 const COLUMNS = [
   { name: "No", uid: "no" },
@@ -40,129 +21,39 @@ const COLUMNS = [
 ];
 
 const ClientRiwayatPesan = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [dateRange, setDateRange] = useState<{ start?: any; end?: any }>({});
-
-  const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([null]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const limit = 10;
-
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [satpamOptions, setSatpamOptions] = useState<Satpam[]>([]);
-  const [selectedSatpam, setSelectedSatpam] = useState("");
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [sending, setSending] = useState(false);
-
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedSearch(search), 500);
-    return () => clearTimeout(handler);
-  }, [search]);
-
-  const from = dateRange.start ? dateRange.start.toString() : undefined;
-  const to = dateRange.end ? dateRange.end.toString() : undefined;
-
-  const fetchMessages = useCallback(async () => {
-    setLoading(true);
-    try {
-      const cursor = cursorHistory[currentIndex];
-      const res = await messageService.getAll({ limit, cursor, search: debouncedSearch, from, to });
-      setMessages(res.data || []);
-      setHasMore(res.meta?.has_more ?? false);
-      setNextCursor(res.meta?.next_cursor ?? null);
-    } catch (error) {
-      console.error("Fetch messages error:", error);
-      setMessages([]);
-      setHasMore(false);
-      setNextCursor(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [cursorHistory, currentIndex, debouncedSearch, from, to]);
-
-  useEffect(() => {
-    setCursorHistory([null]);
-    setCurrentIndex(0);
-  }, [debouncedSearch, from, to]);
-
-  useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
-
-  const handleNextPage = () => {
-    if (hasMore && nextCursor) {
-      setCursorHistory([...cursorHistory.slice(0, currentIndex + 1), nextCursor]);
-      setCurrentIndex(currentIndex + 1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
-  };
-
-  const openSendModal = async () => {
-    onOpen();
-    try {
-      const res = await satpamService.getAll({ limit: 50 });
-      setSatpamOptions(res.data || []);
-    } catch (error) {
-      console.error("Fetch satpam options error:", error);
-      setSatpamOptions([]);
-    }
-  };
-
-  const resetForm = () => {
-    setSelectedSatpam("");
-    setTitle("");
-    setContent("");
-  };
-
-  const handleSend = async () => {
-    if (!selectedSatpam || !title.trim() || !content.trim()) {
-      addToast({ title: "Gagal", description: "Satpam, judul, dan isi pesan wajib diisi", color: "danger", variant: "flat" });
-      return;
-    }
-    setSending(true);
-    try {
-      await messageService.create({ satpam_uuid: selectedSatpam, title: title.trim(), content: content.trim() });
-      addToast({ title: "Berhasil", description: "Pesan berhasil dikirim", color: "success", variant: "flat" });
-      resetForm();
-      onClose();
-      setCursorHistory([null]);
-      setCurrentIndex(0);
-      fetchMessages();
-    } catch (err: any) {
-      addToast({ title: "Gagal", description: err.message, color: "danger", variant: "flat" });
-    } finally {
-      setSending(false);
-    }
-  };
+  const {
+    data,
+    loading,
+    limit,
+    setLimit,
+    search,
+    setSearch,
+    dateRange,
+    setDateRange,
+    hasMore,
+    currentPage,
+    handleNextPage,
+    handlePrevPage,
+  } = useMessageData();
 
   return (
     <div className="flex flex-col gap-2 p-2.5 overflow-hidden">
+      {/* Header here */}
       <div className="header-container flex flex-row items-center justify-between mt-2">
         <div className="flex flex-col items-start">
           <h2 className="font-semibold text-2xl text-[#122C93]">
             Riwayat Pesan
           </h2>
           <p className="text-md text-black text-sm w-230">
-            Semua pesan yang pernah dikirim ke satpam.
+            Semua pesan yang pernah dikirim ke satpam. Untuk kirim pesan baru,
+            buka Download Absensi → klik ikon chat pada satpam yang sedang
+            shift.
           </p>
         </div>
-        <Button
-          className="bg-[#122C93] text-white font-semibold"
-          startContent={<FiPlus />}
-          onPress={openSendModal}
-        >
-          Kirim Pesan
-        </Button>
       </div>
+      {/* end of header */}
 
+      {/* search engine */}
       <div className="container-search rounded-2xl flex flex-row gap-3 items-center bg-[#FFFFFF] p-3 border border-[#E4E9F7]">
         <div className="flex flex-row items-center gap-2 bg-white border border-[#E4E9F7] rounded-xl px-4 h-11 flex-1">
           <FiSearch className="text-[#B0B0B0] text-base flex-shrink-0" />
@@ -175,17 +66,40 @@ const ClientRiwayatPesan = () => {
           />
         </div>
         <DateRangePicker
-          size="sm"
           className="w-72"
+          value={dateRange as any}
+          onChange={(val: any) => setDateRange(val)}
           label="Filter Tanggal"
-          variant="bordered"
-          onChange={(value) => setDateRange(value || {})}
           classNames={{
             label: "!text-xs !font-light !text-[#122C93]",
+            inputWrapper:
+              "bg-white border border-[#E4E9F7] rounded-xl shadow-none h-11 min-h-11 data-[hover=true]:bg-white group-data-[focus=true]:bg-white",
           }}
         />
+        <Select
+          className="w-32"
+          placeholder="Tampilkan"
+          selectedKeys={[limit.toString()]}
+          onChange={(e) => {
+            const newLimit = parseInt(e.target.value);
+            if (!isNaN(newLimit)) setLimit(newLimit);
+          }}
+          classNames={{
+            trigger:
+              "bg-white border border-[#E4E9F7] rounded-xl shadow-none h-11 min-h-11 data-[hover=true]:bg-white",
+            value: "text-[#8D8787] text-sm",
+          }}
+        >
+          {[5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((pageSize) => (
+            <SelectItem key={pageSize.toString()} textValue={`${pageSize} Data`}>
+              {pageSize} Data
+            </SelectItem>
+          ))}
+        </Select>
       </div>
+      {/* end of search engine */}
 
+      {/* Table section */}
       <div className="table-container">
         <Table
           aria-label="Tabel Riwayat Pesan"
@@ -193,19 +107,18 @@ const ClientRiwayatPesan = () => {
           isStriped
           className="rounded-xl border border-[#E8EEFF]"
           bottomContent={
-            <div className="flex w-full justify-center pb-1">
+            <div className="flex w-full justify-center items-center px-4 py-2">
               <Pagination
-                size="sm"
                 showControls
-                showShadow
-                color="primary"
-                page={currentIndex + 1}
-                total={Math.max(currentIndex + 1 + (hasMore ? 1 : 0), 1)}
-                onChange={(page) => {
-                  if (page > currentIndex + 1) handleNextPage();
-                  else if (page < currentIndex + 1) handlePrevPage();
+                page={currentPage}
+                total={Math.max(currentPage + (hasMore ? 1 : 0), 1)}
+                onChange={(p) => {
+                  if (p > currentPage) handleNextPage();
+                  else if (p < currentPage) handlePrevPage();
                 }}
-                classNames={{ item: "[&:not([data-active=true])]:hidden" }}
+                classNames={{
+                  item: "[&:not([data-active=true])]:hidden",
+                }}
               />
             </div>
           }
@@ -221,7 +134,7 @@ const ClientRiwayatPesan = () => {
             )}
           </TableHeader>
 
-          <TableBody items={messages} emptyContent={loading ? <Spinner size="lg" /> : "Tidak ada data"}>
+          <TableBody items={data} emptyContent={loading ? <Spinner size="lg" /> : "Tidak ada data"}>
             {(item) => (
               <TableRow key={item.uuid}>
                 {(columnKey) => {
@@ -229,7 +142,9 @@ const ClientRiwayatPesan = () => {
                     case "no":
                       return (
                         <TableCell className="text-sm text-black">
-                          {currentIndex * limit + messages.indexOf(item) + 1}
+                          {(currentPage - 1) * limit +
+                            data.indexOf(item) +
+                            1}
                         </TableCell>
                       );
                     case "nama":
@@ -247,7 +162,21 @@ const ClientRiwayatPesan = () => {
                     case "isi_pesan":
                       return (
                         <TableCell className="text-sm text-black">
-                          <span className="font-medium">{item.title}</span> — {item.content}
+                          <Tooltip
+                            content={
+                              <div className="px-1 py-2 max-w-[300px] whitespace-normal">
+                                <div className="text-sm font-bold mb-1">{item.title}</div>
+                                <div className="text-xs">{item.content}</div>
+                              </div>
+                            }
+                            placement="top"
+                            className="bg-[#122C93] text-white"
+                          >
+                            <div className="flex flex-col cursor-pointer w-max">
+                              <span className="font-semibold text-gray-800 truncate max-w-[250px]">{item.title}</span>
+                              <span className="text-gray-600 truncate max-w-[250px]">{item.content}</span>
+                            </div>
+                          </Tooltip>
                         </TableCell>
                       );
                     case "tanggal_dikirim":
@@ -267,54 +196,7 @@ const ClientRiwayatPesan = () => {
           </TableBody>
         </Table>
       </div>
-
-      <Modal isOpen={isOpen} onClose={() => { resetForm(); onClose(); }} size="lg">
-        <ModalContent>
-          {(close) => (
-            <>
-              <ModalHeader>Kirim Pesan Baru</ModalHeader>
-              <ModalBody className="flex flex-col gap-4">
-                <Select
-                  label="Satpam Tujuan"
-                  placeholder="Pilih satpam"
-                  selectedKeys={selectedSatpam ? [selectedSatpam] : []}
-                  onChange={(e) => setSelectedSatpam(e.target.value)}
-                >
-                  {satpamOptions.map((s) => (
-                    <SelectItem key={s.uuid} textValue={`${s.nama} (${s.nip})`}>
-                      {s.nama} ({s.nip})
-                    </SelectItem>
-                  ))}
-                </Select>
-                <Input
-                  label="Judul"
-                  placeholder="Judul pesan"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-                <Textarea
-                  label="Isi Pesan"
-                  placeholder="Tulis pesan..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                />
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={() => { resetForm(); close(); }}>
-                  Batal
-                </Button>
-                <Button
-                  className="bg-[#122C93] text-white"
-                  isLoading={sending}
-                  onPress={handleSend}
-                >
-                  Kirim
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
+      {/* end of table section */}
     </div>
   );
 };

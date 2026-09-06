@@ -17,9 +17,10 @@ import type { Patroli } from "../../types/patroli";
 interface PatroliTableProps {
   data: Patroli[];
   isLoading: boolean;
-  currentPage: number;
+  page: number;
+  limit: number;
   hasMore: boolean;
-  rowsPerPage: number;
+  role: string;
   onNextPage: () => void;
   onPrevPage: () => void;
   onEdit: (item: Patroli) => void;
@@ -29,14 +30,16 @@ interface PatroliTableProps {
 export const PatroliTable = ({
   data,
   isLoading,
-  currentPage,
+  page,
+  limit,
   hasMore,
-  rowsPerPage,
+  role,
   onNextPage,
   onPrevPage,
   onEdit,
   onViewImages,
 }: PatroliTableProps) => {
+  const total = Math.max(page + (hasMore ? 1 : 0), 1);
   return (
     <Table
       isStriped
@@ -48,11 +51,14 @@ export const PatroliTable = ({
             showControls
             showShadow
             color="primary"
-            page={currentPage}
-            total={hasMore ? currentPage + 1 : currentPage}
+            page={page}
+            total={total}
             onChange={(p) => {
-              if (p > currentPage) onNextPage();
-              else if (p < currentPage) onPrevPage();
+              if (p > page) onNextPage();
+              else if (p < page) onPrevPage();
+            }}
+            classNames={{
+              item: "[&:not([data-active=true])]:hidden",
             }}
           />
         </div>
@@ -62,6 +68,11 @@ export const PatroliTable = ({
         <TableColumn>No</TableColumn>
         <TableColumn>Nama</TableColumn>
         <TableColumn>NIP</TableColumn>
+        {role !== "client" ? (
+          <TableColumn>Mitra</TableColumn>
+        ) : (
+          <TableColumn className="hidden">Mitra</TableColumn>
+        )}
         <TableColumn>Waktu</TableColumn>
         <TableColumn>Pos</TableColumn>
         <TableColumn>Status</TableColumn>
@@ -76,26 +87,33 @@ export const PatroliTable = ({
       >
         {data.map((item, index) => (
           <TableRow key={item.uuid}>
-            <TableCell>{(currentPage - 1) * rowsPerPage + index + 1}</TableCell>
+            <TableCell>{(page - 1) * limit + index + 1}</TableCell>
             <TableCell>
-              <div className="w-[150px] truncate">{item.satpam.nama}</div>
+              <div className="w-[150px] truncate">{item.satpam?.nama || "-"}</div>
             </TableCell>
             <TableCell>
-              <div className="w-[150px] truncate">{item.satpam.nip}</div>
+              <div className="w-[150px] truncate">{item.satpam?.nip || "-"}</div>
             </TableCell>
+            {role !== "client" ? (
+              <TableCell>
+                <div className="w-[150px] truncate">{item.satpam?.client || "-"}</div>
+              </TableCell>
+            ) : (
+              <TableCell className="hidden">{""}</TableCell>
+            )}
             <TableCell>{formatDateTimeZone(item.created_at)}</TableCell>
             <TableCell>
-              <div className="w-[150px] truncate">{item.pos.nama}</div>
+              <div className="w-[150px] truncate">{item.pos?.nama || "-"}</div>
             </TableCell>
             <TableCell>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-semibold ${item.status === "aman" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${item.status?.toLowerCase() === "aman" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
               >
-                {item.status === "aman" ? "Aman" : "Tidak Aman"}
+                {item.status || "-"}
               </span>
             </TableCell>
             <TableCell>
-              <div className="w-[150px] truncate">{item.description}</div>
+              <div className="w-[150px] truncate">{item.description || "-"}</div>
             </TableCell>
             <TableCell>
               <div className="flex justify-center">
@@ -106,13 +124,7 @@ export const PatroliTable = ({
                       size="sm"
                       variant="light"
                       className="text-[#122C93]"
-                      onPress={() =>
-                        onViewImages(
-                          item.photos
-                            .map((p) => p.view_url)
-                            .filter((url): url is string => Boolean(url)),
-                        )
-                      }
+                      onPress={() => onViewImages(item.photos.map((p) => p.view_url))}
                     >
                       <FaImage size={18} />
                     </Button>

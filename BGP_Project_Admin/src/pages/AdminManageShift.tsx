@@ -20,8 +20,7 @@ const AdminManageShift = () => {
     onOpenChange: onFormChange,
   } = useDisclosure();
 
-  const { data, setPage, handleNextPage, handlePrevPage, refreshData, deleteState } =
-    useScheduleData();
+  const { data, setPage, refreshData, deleteState } = useScheduleData();
   const options = useScheduleOptions(isOpenForm || isOpenGenerate);
 
   const formHook = useScheduleForm({
@@ -81,11 +80,10 @@ const AdminManageShift = () => {
           <ScheduleTable
             data={data.dataJadwal}
             isLoading={data.isLoading}
-            currentPage={data.currentPage}
-            hasMore={data.hasMore}
+            page={data.page}
+            totalPages={data.totalPages}
             rowsPerPage={data.rowsPerPage}
-            onNextPage={handleNextPage}
-            onPrevPage={handlePrevPage}
+            onPageChange={setPage}
             onEdit={handleOpenEdit}
             onDelete={deleteState.confirm}
           />

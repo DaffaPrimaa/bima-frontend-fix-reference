@@ -82,7 +82,7 @@ const AdminAprovalAkun = () => {
             }}
           >
             {[
-              { key: "all", label: "Semua Waktu Keputusan" },
+              { key: "all", label: "Semua Periode" },
               { key: "1", label: "1 Hari Terakhir" },
               { key: "7", label: "7 Hari Terakhir" },
               { key: "14", label: "14 Hari Terakhir" },

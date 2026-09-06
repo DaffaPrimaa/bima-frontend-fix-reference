@@ -88,8 +88,8 @@ export const useShiftForm = ({ onSuccess, onClose }: UseShiftFormProps) => {
     try {
       const payload = {
         nama: formData.nama,
-        start_local: formatTime(formData.mulai),
-        end_local: formatTime(formData.selesai),
+        mulai: formatTime(formData.mulai),
+        selesai: formatTime(formData.selesai),
         timezone: !selectedId ? getDeviceTimezone() : undefined,
       };
 

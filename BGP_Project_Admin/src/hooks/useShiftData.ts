@@ -6,43 +6,25 @@ import { addToast } from "@heroui/react";
 export const useShiftData = () => {
   const [listWaktu, setListWaktu] = useState<Shift[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [limit, setLimitState] = useState(12);
-  const [search, setSearchState] = useState("");
-  const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([null]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const rowsPerPage = 12;
 
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Ganti limit/search berarti mulai dari halaman pertama lagi — cursor
-  // lama gak valid buat kombinasi baru.
-  const setLimit = (value: number) => {
-    setLimitState(value);
-    setCursorHistory([null]);
-    setCurrentIndex(0);
-  };
-  const setSearch = (value: string) => {
-    setSearchState(value);
-    setCursorHistory([null]);
-    setCurrentIndex(0);
-  };
-
   const fetchWaktu = useCallback(async () => {
     setIsLoading(true);
     try {
-      const cursor = cursorHistory[currentIndex];
-      const result = await shiftService.getAll(limit, cursor, search);
-      if (result && Array.isArray(result.data)) {
-        setListWaktu(result.data);
-        setHasMore(result.meta?.has_more ?? false);
-        setNextCursor(result.meta?.next_cursor ?? null);
+      const result = await shiftService.getAll(page);
+      if (result.data && Array.isArray(result.data.data)) {
+        setListWaktu(result.data.data);
+        if (result.data.pagination) {
+          setTotalPages(result.data.pagination.total_pages);
+        }
       } else {
         setListWaktu([]);
-        setHasMore(false);
-        setNextCursor(null);
       }
     } catch (error: any) {
       console.error(error);
@@ -56,16 +38,11 @@ export const useShiftData = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentIndex, cursorHistory, limit, search]);
+  }, [page]);
 
   useEffect(() => {
     fetchWaktu();
   }, [fetchWaktu]);
-
-  const resetPagination = (_page?: number) => {
-    setCursorHistory([null]);
-    setCurrentIndex(0);
-  };
 
   const confirmDelete = (uuid: string) => {
     setDeleteTargetId(uuid);
@@ -98,34 +75,9 @@ export const useShiftData = () => {
     }
   };
 
-  const handleNextPage = () => {
-    if (hasMore && nextCursor) {
-      if (currentIndex === cursorHistory.length - 1) {
-        setCursorHistory((prev) => [...prev, nextCursor]);
-      }
-      setCurrentIndex((prev) => prev + 1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (currentIndex > 0) setCurrentIndex((prev) => prev - 1);
-  };
-
   return {
-    data: {
-      listWaktu,
-      isLoading,
-      currentPage: currentIndex + 1,
-      hasMore,
-      rowsPerPage: limit,
-    },
-    search,
-    setSearch,
-    limit,
-    setLimit,
-    setPage: resetPagination,
-    handleNextPage,
-    handlePrevPage,
+    data: { listWaktu, isLoading, page, totalPages, rowsPerPage },
+    setPage,
     refreshData: fetchWaktu,
     deleteState: {
       isOpen: isDeleteModalOpen,

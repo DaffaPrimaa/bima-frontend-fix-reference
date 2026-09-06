@@ -29,5 +29,26 @@ export const useAttendanceExport = () => {
     }
   };
 
-  return { isDownloading, handleDownload };
+  const handleDownloadById = async (uuid: string) => {
+    try {
+      const blob = await attendanceService.exportById(uuid);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `absensi_${uuid}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      addToast({
+        title: "Gagal",
+        description: "Terjadi kesalahan saat mengunduh file detail.",
+        color: "danger",
+        variant: "flat",
+      });
+    }
+  };
+
+  return { isDownloading, handleDownload, handleDownloadById };
 };

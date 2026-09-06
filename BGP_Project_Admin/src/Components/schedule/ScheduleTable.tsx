@@ -16,33 +16,21 @@ import { getHari } from "../../Utils/helpers";
 interface ScheduleTableProps {
   data: Jadwal[];
   isLoading: boolean;
-  currentPage: number;
-  hasMore: boolean;
+  page: number;
+  totalPages: number;
   rowsPerPage: number;
-  onNextPage: () => void;
-  onPrevPage: () => void;
+  onPageChange: (page: number) => void;
   onEdit: (uuid: string) => void;
   onDelete: (uuid: string) => void;
 }
 
-const formatJam = (isoString: string) => {
-  const date = new Date(isoString);
-  if (isNaN(date.getTime())) return "-";
-  return date.toLocaleTimeString("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-};
-
 export const ScheduleTable = ({
   data,
   isLoading,
-  currentPage,
-  hasMore,
+  page,
+  totalPages,
   rowsPerPage,
-  onNextPage,
-  onPrevPage,
+  onPageChange,
   onEdit,
   onDelete,
 }: ScheduleTableProps) => {
@@ -52,19 +40,18 @@ export const ScheduleTable = ({
       shadow="none"
       className="rounded-xl border border-gray-200"
       bottomContent={
-        <div className="flex w-full justify-center">
-          <Pagination
-            showControls
-            showShadow
-            color="primary"
-            page={currentPage}
-            total={hasMore ? currentPage + 1 : currentPage}
-            onChange={(p) => {
-              if (p > currentPage) onNextPage();
-              else if (p < currentPage) onPrevPage();
-            }}
-          />
-        </div>
+        totalPages > 0 ? (
+          <div className="flex w-full justify-center">
+            <Pagination
+              showControls
+              showShadow
+              color="primary"
+              page={page}
+              total={totalPages}
+              onChange={onPageChange}
+            />
+          </div>
+        ) : null
       }
     >
       <TableHeader>
@@ -84,18 +71,18 @@ export const ScheduleTable = ({
       >
         {data.map((item, index) => (
           <TableRow key={item.uuid}>
-            <TableCell>{(currentPage - 1) * rowsPerPage + index + 1}</TableCell>
-            <TableCell>{getHari(item.work_date)}</TableCell>
-            <TableCell>{item.work_date}</TableCell>
-            <TableCell>{`${formatJam(item.starts_at)} - ${formatJam(item.ends_at)}`}</TableCell>
+            <TableCell>{(page - 1) * rowsPerPage + index + 1}</TableCell>
+            <TableCell>{getHari(item.tanggal)}</TableCell>
+            <TableCell>{item.tanggal}</TableCell>
+            <TableCell>{`${item.mulai.slice(0, 5)} - ${item.selesai.slice(0, 5)}`}</TableCell>
             <TableCell>
-              <div className="w-[150px] truncate">{item.satpam.nama}</div>
+              <div className="w-[150px] truncate">{item.satpam_name}</div>
             </TableCell>
             <TableCell>
-              <div className="w-[150px] truncate">{item.pattern.nama}</div>
+              <div className="w-[150px] truncate">{item.shift_nama}</div>
             </TableCell>
             <TableCell>
-              <div className="w-[150px] truncate">{item.pos.nama}</div>
+              <div className="w-[150px] truncate">{item.nama_pos}</div>
             </TableCell>
             <TableCell>
               <div className="flex justify-center gap-3">

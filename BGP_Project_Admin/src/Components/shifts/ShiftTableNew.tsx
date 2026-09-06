@@ -6,24 +6,18 @@ import {
   TableRow,
   TableCell,
   Pagination,
-  Button,
   Spinner,
 } from "@heroui/react";
 import { FaEdit } from "react-icons/fa";
 import { MdDelete } from "react-icons/md";
 
-export interface ShiftData {
-  uuid: string;
-  nama_shift: string;
-  jam_mulai: string;
-  jam_selesai: string;
-}
+import type { ShiftPattern } from "../../types/shiftPattern";
 
 interface ShiftTableProps {
-  data: ShiftData[];
-  page: number;
-  rowsPerPage: number;
+  data: ShiftPattern[];
+  currentPage: number;
   hasMore: boolean;
+  limit: number;
   isLoading?: boolean;
   onNextPage: () => void;
   onPrevPage: () => void;
@@ -33,9 +27,9 @@ interface ShiftTableProps {
 
 const ShiftTableNew = ({
   data,
-  page,
-  rowsPerPage,
+  currentPage,
   hasMore,
+  limit,
   isLoading,
   onNextPage,
   onPrevPage,
@@ -48,16 +42,17 @@ const ShiftTableNew = ({
       shadow="none"
       className="border border-gray-200 rounded-xl"
       bottomContent={
-        <div className="flex w-full justify-center">
+        <div className="flex w-full justify-center items-center px-4 py-2">
           <Pagination
             showControls
-            showShadow
-            color="primary"
-            page={page}
-            total={hasMore ? page + 1 : page}
-            onChange={(p) => {
-              if (p > page) onNextPage();
-              else if (p < page) onPrevPage();
+            page={currentPage}
+            total={Math.max(currentPage + (hasMore ? 1 : 0), 1)}
+            onChange={(page) => {
+              if (page > currentPage) onNextPage();
+              else if (page < currentPage) onPrevPage();
+            }}
+            classNames={{
+              item: "[&:not([data-active=true])]:hidden",
             }}
           />
         </div>
@@ -77,33 +72,31 @@ const ShiftTableNew = ({
       >
         {data.map((item, index) => (
           <TableRow key={item.uuid}>
-            <TableCell>{(page - 1) * rowsPerPage + index + 1}</TableCell>
+            <TableCell>{(currentPage - 1) * limit + index + 1}</TableCell>
 
             <TableCell>
-              <div className="w-[150px] truncate">{item.nama_shift}</div>
+              <div className="w-[150px] truncate">{item.nama}</div>
             </TableCell>
 
-            <TableCell>{item.jam_mulai}</TableCell>
-            <TableCell>{item.jam_selesai}</TableCell>
+            <TableCell>{item.start_local}</TableCell>
+            <TableCell>{item.end_local}</TableCell>
 
             <TableCell className="text-center">
               <div className="flex flex-row items-center justify-center gap-2">
-                <Button
-                  size="sm"
-                  onPress={() => onEdit(item.uuid)}
-                  className="bg-[#02A758] text-white font-semibold"
-                  startContent={<FaEdit />}
+                <button
+                  type="button"
+                  className="border border-[#C7D2FE] text-[#122C93] rounded-lg p-2 hover:bg-[#F5F7FF] cursor-pointer transition-colors"
+                  onClick={() => onEdit(item.uuid)}
                 >
-                  Ubah
-                </Button>
-                <Button
-                  size="sm"
-                  onPress={() => onDelete(item.uuid)}
-                  className="bg-[#B91C1C] text-white font-semibold"
-                  startContent={<MdDelete />}
+                  <FaEdit className="text-base" />
+                </button>
+                <button
+                  type="button"
+                  className="border border-[#C7D2FE] text-[#A70202] rounded-lg p-2 hover:bg-[#FDEDED] cursor-pointer transition-colors"
+                  onClick={() => onDelete(item.uuid)}
                 >
-                  Hapus
-                </Button>
+                  <MdDelete className="text-base" />
+                </button>
               </div>
             </TableCell>
           </TableRow>

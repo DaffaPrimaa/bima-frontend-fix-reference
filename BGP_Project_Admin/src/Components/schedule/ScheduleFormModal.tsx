@@ -9,6 +9,7 @@ import {
   Select,
   SelectItem,
 } from "@heroui/react";
+import { InfiniteScrollTrigger } from "../common/InfiniteScrollTrigger";
 import type { useScheduleForm } from "../../hooks/useScheduleForm";
 import type {
   SatpamOption,
@@ -23,8 +24,17 @@ interface ScheduleFormModalProps {
   formHook: ReturnType<typeof useScheduleForm>;
   options: {
     listSatpam: SatpamOption[];
+    hasMoreSatpam: boolean;
+    isLoadingSatpam: boolean;
+    loadMoreSatpam: () => void;
     listShift: ShiftOption[];
+    hasMoreShift: boolean;
+    isLoadingShift: boolean;
+    loadMoreShift: () => void;
     listPos: PosOption[];
+    hasMorePos: boolean;
+    isLoadingPos: boolean;
+    loadMorePos: () => void;
   };
 }
 
@@ -36,7 +46,11 @@ export const ScheduleFormModal = ({
 }: ScheduleFormModalProps) => {
   const { formState, setFormData, actions } = formHook;
   const { formData, errors, selectedUuid, isSubmitting } = formState;
-  const { listSatpam, listShift, listPos } = options;
+  const { 
+    listSatpam, hasMoreSatpam, isLoadingSatpam, loadMoreSatpam,
+    listShift, hasMoreShift, isLoadingShift, loadMoreShift,
+    listPos, hasMorePos, isLoadingPos, loadMorePos 
+  } = options;
 
   const handleClose = () => {
     actions.resetForm();
@@ -79,6 +93,15 @@ export const ScheduleFormModal = ({
                     pos_uuid: String(Array.from(k)[0]),
                   })
                 }
+                listboxProps={{
+                  bottomContent: (
+                    <InfiniteScrollTrigger
+                      hasMore={hasMorePos}
+                      isLoading={isLoadingPos}
+                      onLoadMore={loadMorePos}
+                    />
+                  ),
+                }}
               >
                 {listPos.map((p) => (
                   <SelectItem key={p.uuid} textValue={p.nama}>
@@ -105,6 +128,15 @@ export const ScheduleFormModal = ({
                     satpam_uuid: String(Array.from(k)[0]),
                   })
                 }
+                listboxProps={{
+                  bottomContent: (
+                    <InfiniteScrollTrigger
+                      hasMore={hasMoreSatpam}
+                      isLoading={isLoadingSatpam}
+                      onLoadMore={loadMoreSatpam}
+                    />
+                  ),
+                }}
               >
                 {listSatpam.map((s) => (
                   <SelectItem key={s.uuid} textValue={`${s.nama} - ${s.nip}`}>
@@ -127,6 +159,15 @@ export const ScheduleFormModal = ({
                     shift_uuid: String(Array.from(k)[0]),
                   })
                 }
+                listboxProps={{
+                  bottomContent: (
+                    <InfiniteScrollTrigger
+                      hasMore={hasMoreShift}
+                      isLoading={isLoadingShift}
+                      onLoadMore={loadMoreShift}
+                    />
+                  ),
+                }}
               >
                 {listShift.map((s) => (
                   <SelectItem

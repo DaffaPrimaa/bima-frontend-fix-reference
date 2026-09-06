@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { formatDateTimeZone, getRole } from "../Utils/helpers";
+import { formatDateTimeZone } from "../Utils/helpers";
 import { useSharedDocumentData } from "../hooks/useSharedDocumentData";
 import { useSharedDocumentForm } from "../hooks/useSharedDocumentForm";
 import { satpamService } from "../services/satpamService";
@@ -60,7 +60,6 @@ const columns = [
 ];
 
 const AdminRepositoriDokumen = () => {
-  const isClient = getRole()?.toLowerCase() === "client";
   const {
     dataDocs,
     loading,
@@ -211,15 +210,13 @@ const AdminRepositoriDokumen = () => {
             satpam via aplikasi. Bisa untuk semua satpam atau client tertentu.
           </p>
         </div>
-        {!isClient && (
-          <Button
-            className="text-white font-semibold bg-[#122C93]"
-            size="md"
-            onPress={openCreateModal}
-          >
-            + Upload Dokumen
-          </Button>
-        )}
+        <Button
+          className="text-white font-semibold bg-[#122C93]"
+          size="md"
+          onPress={openCreateModal}
+        >
+          + Upload Dokumen
+        </Button>
       </div>
 
       <div className="container-search rounded-2xl flex flex-row gap-3 items-center bg-[#FFFFFF] p-3 border border-[#E4E9F7]">
@@ -386,14 +383,12 @@ const AdminRepositoriDokumen = () => {
                       return (
                         <TableCell>
                           <div className="flex justify-center gap-2">
-                            {!isClient && (
-                              <button
-                                className="border border-[#C7D2FE] text-[#122C93] rounded-lg p-2 hover:bg-[#F5F7FF] cursor-pointer"
-                                onClick={() => handleEdit(item)}
-                              >
-                                <FaRegEdit className="text-base" />
-                              </button>
-                            )}
+                            <button
+                              className="border border-[#C7D2FE] text-[#122C93] rounded-lg p-2 hover:bg-[#F5F7FF] cursor-pointer"
+                              onClick={() => handleEdit(item)}
+                            >
+                              <FaRegEdit className="text-base" />
+                            </button>
                             {item.file?.download_url ? (
                               <a
                                 href={item.file.download_url}
@@ -407,14 +402,12 @@ const AdminRepositoriDokumen = () => {
                                 <LuDownload className="text-base" />
                               </button>
                             )}
-                            {!isClient && (
-                              <button
-                                className="border border-[#C7D2FE] text-[#A70202] rounded-lg p-2 hover:bg-[#FDEDED] cursor-pointer"
-                                onClick={() => handleDeletePrompt(item)}
-                              >
-                                <FaRegTrashAlt className="text-base" />
-                              </button>
-                            )}
+                            <button
+                              className="border border-[#C7D2FE] text-[#A70202] rounded-lg p-2 hover:bg-[#FDEDED] cursor-pointer"
+                              onClick={() => handleDeletePrompt(item)}
+                            >
+                              <FaRegTrashAlt className="text-base" />
+                            </button>
                           </div>
                         </TableCell>
                       );

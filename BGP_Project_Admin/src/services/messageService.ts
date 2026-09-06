@@ -1,47 +1,56 @@
 import { fetchWithAuth } from "../Utils/fetchWithAuth";
 import { getToken } from "../Utils/helpers";
-import type { MessageResponse, CreateMessagePayload } from "../types/message";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
-const getHeaders = () => ({
-  "Content-Type": "application/json",
-  Authorization: `Bearer ${getToken()}`,
-});
+const getHeaders = () => {
+  return {
+    Authorization: `Bearer ${getToken()}`,
+    "Content-Type": "application/json",
+  };
+};
 
 export const messageService = {
-  getAll: async (paramsObj: {
-    limit?: number;
-    cursor?: string | null;
-    search?: string;
-    from?: string;
-    to?: string;
-  } = {}): Promise<MessageResponse> => {
-    const limit = paramsObj.limit ?? 10;
-    const params = new URLSearchParams({ limit: limit.toString() });
-    if (paramsObj.cursor) params.append("cursor", paramsObj.cursor);
-    if (paramsObj.search) params.append("search", paramsObj.search);
-    if (paramsObj.from) params.append("from", paramsObj.from);
-    if (paramsObj.to) params.append("to", paramsObj.to);
+  getAll: async (
+    limit: number = 20,
+    cursor?: string | null,
+    search?: string,
+    satpam?: string,
+    unread?: boolean,
+    from?: string,
+    to?: string
+  ) => {
+    const params = new URLSearchParams();
+    if (limit) params.append("limit", limit.toString());
+    if (cursor) params.append("cursor", cursor);
+    if (search) params.append("search", search);
+    if (satpam) params.append("satpam", satpam);
+    if (unread !== undefined) params.append("unread", unread.toString());
+    if (from) params.append("from", from);
+    if (to) params.append("to", to);
 
-    const res = await fetchWithAuth(`${API_BASE}/messages?${params.toString()}`, {
-      method: "GET",
+    const response = await fetchWithAuth(`${API_BASE}/messages?${params.toString()}`, {
       headers: getHeaders(),
     });
-    const result = await res.json().catch(() => ({}));
-    if (!res.ok)
-      throw new Error(result.error?.message || result.message || "Gagal mengambil riwayat pesan");
-    return result;
-  },
 
-  create: async (payload: CreateMessagePayload): Promise<void> => {
-    const res = await fetchWithAuth(`${API_BASE}/messages`, {
+    if (!response.ok) {
+      throw new Error("Failed to fetch messages");
+    }
+
+    return response.json();
+  },
+  create: async (payload: { satpam_uuid: string; title: string; content: string }) => {
+    const response = await fetchWithAuth(`${API_BASE}/messages`, {
       method: "POST",
       headers: getHeaders(),
       body: JSON.stringify(payload),
     });
-    const result = await res.json().catch(() => ({}));
-    if (!res.ok)
-      throw new Error(result.error?.message || result.message || "Gagal mengirim pesan");
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error?.message || err.message || "Failed to send message");
+    }
+
+    return response.json();
   },
 };

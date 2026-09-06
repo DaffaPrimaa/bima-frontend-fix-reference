@@ -60,7 +60,7 @@ export const PosUtamaFormModal = ({
                 placeholder="-6.xxxxx"
                 variant="underlined"
                 size="lg"
-                value={formData.lat}
+                value={String(formData.lat)}
                 onChange={(e) =>
                   setters.handleManualCoordChange("lat", e.target.value)
                 }
@@ -70,7 +70,7 @@ export const PosUtamaFormModal = ({
                 placeholder="107.xxxxx"
                 variant="underlined"
                 size="lg"
-                value={formData.lng}
+                value={String(formData.lng)}
                 onChange={(e) =>
                   setters.handleManualCoordChange("lng", e.target.value)
                 }

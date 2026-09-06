@@ -2,17 +2,10 @@ import { Button, Spinner } from "@heroui/react";
 import { MdDelete, MdEditCalendar } from "react-icons/md";
 import type { Jadwal } from "../../types/schedule";
 
-interface ShiftPatternLike {
-  uuid: string;
-  nama: string;
-  mulai?: string;
-  selesai?: string;
-}
-
 interface JadwalHarianViewProps {
   currentDateIso: string;
   isJadwalLoading: boolean;
-  shiftData: ShiftPatternLike[];
+  shiftData: any[];
   allJadwal: Jadwal[];
   handleOpenAssign: (shiftUuid: string) => void;
   handleEditJadwalInstance: (item: Jadwal) => void;
@@ -44,7 +37,7 @@ const JadwalHarianView = ({
             (j) =>
               j.pattern.uuid === shift.uuid &&
               j.work_date === currentDateIso &&
-              j.status !== "cancelled",
+              j.status !== "cancelled"
           );
 
           return (
@@ -56,7 +49,7 @@ const JadwalHarianView = ({
                 <div className="jadwal flex flex-col items-start">
                   <h2 className="font-semibold">{shift.nama}</h2>
                   <h2 className="text-light text-sm text-[#6B6B6B]">
-                    {shift.mulai?.slice(0, 5)} - {shift.selesai?.slice(0, 5)}
+                    {shift.start_local?.slice(0, 5)} - {shift.end_local?.slice(0, 5)}
                   </h2>
                 </div>
                 <Button
@@ -87,7 +80,7 @@ const JadwalHarianView = ({
                         <div className="container-details-satpam flex flex-col gap-1 items-start">
                           <h2 className="text-sm">{item.satpam.nama}</h2>
                           <h2 className="text-xs text-[#6B6B6B]">
-                            {item.pos.nama} · {item.satpam.nip}
+                            {item.satpam.jabatan || "Anggota"} · {item.pos.nama}
                           </h2>
                         </div>
                       </div>

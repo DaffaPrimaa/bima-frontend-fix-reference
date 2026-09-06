@@ -47,21 +47,21 @@ export const PengumumanList = ({
             />
           ))
         )}
-      </div>
-
-      <div className="flex w-full justify-center items-center px-4 py-2 mt-2">
-        <Pagination
-          showControls
-          page={currentPage}
-          total={Math.max(currentPage + (hasMore ? 1 : 0), 1)}
-          onChange={(page) => {
-            if (page > currentPage) onNextPage();
-            else if (page < currentPage) onPrevPage();
-          }}
-          classNames={{
-            item: "[&:not([data-active=true])]:hidden",
-          }}
-        />
+        
+        <div className="flex w-full justify-center items-center px-4 py-2 mt-2">
+          <Pagination
+            showControls
+            page={currentPage}
+            total={Math.max(currentPage + (hasMore ? 1 : 0), 1)}
+            onChange={(page) => {
+              if (page > currentPage) onNextPage();
+              else if (page < currentPage) onPrevPage();
+            }}
+            classNames={{
+              item: "[&:not([data-active=true])]:hidden",
+            }}
+          />
+        </div>
       </div>
     </>
   );

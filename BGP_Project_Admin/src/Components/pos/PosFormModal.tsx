@@ -60,7 +60,7 @@ export const PosFormModal = ({
                 placeholder="-6.xxxxx"
                 variant="underlined"
                 size="lg"
-                value={formData.lat}
+                value={formData.lat?.toString() || ""}
                 onChange={(e) =>
                   setters.handleManualCoordChange("lat", e.target.value)
                 }
@@ -70,7 +70,7 @@ export const PosFormModal = ({
                 placeholder="107.xxxxx"
                 variant="underlined"
                 size="lg"
-                value={formData.lng}
+                value={formData.lng?.toString() || ""}
                 onChange={(e) =>
                   setters.handleManualCoordChange("lng", e.target.value)
                 }

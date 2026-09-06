@@ -199,10 +199,6 @@ export const useAdminSatpamDetails = (uuid: string) => {
       addToast({ title: "Gagal", description: "Lengkapi judul dan tahun", color: "danger", variant: "flat" });
       return;
     }
-    if (!editEduUuid && !eduFile) {
-      addToast({ title: "Gagal", description: "Dokumen wajib diunggah", color: "danger", variant: "flat" });
-      return;
-    }
     setIsUploadingEdu(true);
     try {
       let objectUuid = "";

@@ -8,46 +8,157 @@ import {
   ModalBody,
   ModalFooter,
   Input,
+  addToast,
   useDisclosure,
 } from "@heroui/react";
+import { useState } from "react";
 import { FiSearch } from "react-icons/fi";
-import ShiftTableNew, { type ShiftData } from "../shifts/ShiftTableNew";
+import ShiftTableNew from "./../shifts/ShiftTableNew";
 import { DeleteConfirmationModal } from "../common/DeleteConfirmationModal";
-import { useShiftData } from "../../hooks/useShiftData";
-import { useShiftForm } from "../../hooks/useShiftForm";
+import { useShiftPatternData } from "../../hooks/useShiftPatternData";
+import { shiftPatternService } from "../../services/shiftPatternService";
 import { getDeviceTimezone } from "../../Utils/helpers";
 
 const ShiftConfigSection = () => {
-  const shiftDataHook = useShiftData();
-  const shiftFormHook = useShiftForm({
-    onSuccess: () => {
-      if (!shiftFormHook.formState.selectedId) shiftDataHook.setPage(1);
-      shiftDataHook.refreshData();
-    },
-    onClose: () => modalShiftForm.onOpenChange(),
-  });
+  const {
+    data: shiftData,
+    isLoading: isShiftLoading,
+    search: shiftSearch,
+    setSearch: setShiftSearch,
+    limit: shiftLimit,
+    setLimit: setShiftLimit,
+    hasMore: shiftHasMore,
+    currentPageIndex: shiftCurrentPage,
+    handleNextPage: handleShiftNextPage,
+    handlePrevPage: handleShiftPrevPage,
+    refreshData: refreshShiftData,
+  } = useShiftPatternData();
+
+  const [deleteShiftId, setDeleteShiftId] = useState<string | null>(null);
+
   const modalShiftForm = useDisclosure();
-
-  const shiftTableData: ShiftData[] = shiftDataHook.data.listWaktu.map((s) => ({
-    uuid: s.uuid,
-    nama_shift: s.nama,
-    jam_mulai: s.mulai ? s.mulai.slice(0, 5) : "-",
-    jam_selesai: s.selesai ? s.selesai.slice(0, 5) : "-",
-  }));
-
-  const handleOpenAddShift = () => {
-    shiftFormHook.actions.resetForm();
-    modalShiftForm.onOpen();
-  };
+  const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
+  const [shiftFormData, setShiftFormData] = useState({
+    nama: "",
+    mulai: "",
+    selesai: "",
+  });
+  const [shiftFormErrors, setShiftFormErrors] = useState<Record<string, string | undefined>>({});
+  const [isShiftFormSubmitting, setIsShiftFormSubmitting] = useState(false);
 
   const handleEditShift = async (uuid: string) => {
-    await shiftFormHook.actions.loadData(uuid);
-    modalShiftForm.onOpen();
+    try {
+      const res = await shiftPatternService.getById(uuid);
+      setShiftFormData({
+        nama: res.data.nama,
+        mulai: res.data.start_local,
+        selesai: res.data.end_local,
+      });
+      setSelectedShiftId(uuid);
+      modalShiftForm.onOpen();
+    } catch (err: any) {
+      addToast({
+        title: "Gagal",
+        description: err.message || "Gagal mengambil detail shift",
+        variant: "flat",
+        color: "danger",
+        timeout: 3000,
+      });
+    }
+  };
+
+  const confirmDeleteShift = (uuid: string) => {
+    setDeleteShiftId(uuid);
+  };
+
+  const handleDeleteShift = async () => {
+    if (!deleteShiftId) return;
+    try {
+      await shiftPatternService.delete(deleteShiftId);
+      addToast({
+        title: "Berhasil",
+        description: "Berhasil menghapus shift",
+        variant: "flat",
+        color: "success",
+        timeout: 3000,
+      });
+      refreshShiftData();
+    } catch (err: any) {
+      addToast({
+        title: "Gagal",
+        description: err.message || "Gagal menghapus shift",
+        variant: "flat",
+        color: "danger",
+        timeout: 3000,
+      });
+    } finally {
+      setDeleteShiftId(null);
+    }
+  };
+
+  const resetShiftForm = () => {
+    setShiftFormData({ nama: "", mulai: "", selesai: "" });
+    setShiftFormErrors({});
+    setSelectedShiftId(null);
   };
 
   const handleCloseShiftForm = () => {
-    shiftFormHook.actions.resetForm();
+    resetShiftForm();
     modalShiftForm.onOpenChange();
+  };
+
+  const handleShiftFormSubmit = async () => {
+    const errors: Record<string, string> = {};
+    if (!shiftFormData.nama) errors.nama = "Nama wajib diisi";
+    if (!shiftFormData.mulai) errors.mulai = "Jam mulai wajib diisi";
+    if (!shiftFormData.selesai) errors.selesai = "Jam selesai wajib diisi";
+
+    if (Object.keys(errors).length > 0) {
+      setShiftFormErrors(errors);
+      return;
+    }
+
+    setIsShiftFormSubmitting(true);
+    try {
+      const payload = {
+        nama: shiftFormData.nama,
+        start_local: shiftFormData.mulai,
+        end_local: shiftFormData.selesai,
+        timezone: getDeviceTimezone(),
+      };
+
+      if (selectedShiftId) {
+        await shiftPatternService.update(selectedShiftId, payload);
+        addToast({
+          title: "Berhasil",
+          description: "Berhasil mengubah shift",
+          variant: "flat",
+          color: "success",
+          timeout: 3000,
+        });
+      } else {
+        await shiftPatternService.create(payload);
+        addToast({
+          title: "Berhasil",
+          description: "Berhasil menambahkan shift",
+          variant: "flat",
+          color: "success",
+          timeout: 3000,
+        });
+      }
+      handleCloseShiftForm();
+      refreshShiftData();
+    } catch (err: any) {
+      addToast({
+        title: "Gagal",
+        description: err.message || "Gagal menyimpan shift",
+        variant: "flat",
+        color: "danger",
+        timeout: 3000,
+      });
+    } finally {
+      setIsShiftFormSubmitting(false);
+    }
   };
 
   return (
@@ -64,18 +175,18 @@ const ShiftConfigSection = () => {
               type="search"
               placeholder="Cari shift..."
               className="bg-transparent text-sm text-gray-700 placeholder:text-[#B0B0B0] outline-none w-full h-full"
-              value={shiftDataHook.search}
-              onChange={(e) => shiftDataHook.setSearch(e.target.value)}
+              value={shiftSearch}
+              onChange={(e) => setShiftSearch(e.target.value)}
             />
           </div>
 
           <Select
             className="w-32"
             placeholder="Tampilkan"
-            selectedKeys={[shiftDataHook.limit.toString()]}
+            selectedKeys={[shiftLimit.toString()]}
             onChange={(e) => {
               const newLimit = parseInt(e.target.value);
-              if (!isNaN(newLimit)) shiftDataHook.setLimit(newLimit);
+              if (!isNaN(newLimit)) setShiftLimit(newLimit);
             }}
             classNames={{
               trigger:
@@ -92,7 +203,10 @@ const ShiftConfigSection = () => {
 
           <Button
             className="bg-[#122C93] text-white font-semibold h-11 rounded-xl px-6"
-            onPress={handleOpenAddShift}
+            onPress={() => {
+              resetShiftForm();
+              modalShiftForm.onOpen();
+            }}
           >
             Tambah +
           </Button>
@@ -101,22 +215,22 @@ const ShiftConfigSection = () => {
 
       <div className="shift-table mt-4">
         <ShiftTableNew
-          data={shiftTableData}
-          page={shiftDataHook.data.currentPage}
-          rowsPerPage={shiftDataHook.data.rowsPerPage}
-          hasMore={shiftDataHook.data.hasMore}
-          isLoading={shiftDataHook.data.isLoading}
-          onNextPage={shiftDataHook.handleNextPage}
-          onPrevPage={shiftDataHook.handlePrevPage}
+          data={shiftData}
+          currentPage={shiftCurrentPage + 1}
+          hasMore={shiftHasMore}
+          limit={shiftLimit}
+          isLoading={isShiftLoading}
+          onNextPage={handleShiftNextPage}
+          onPrevPage={handleShiftPrevPage}
           onEdit={handleEditShift}
-          onDelete={shiftDataHook.deleteState.confirm}
+          onDelete={confirmDeleteShift}
         />
       </div>
 
       <Modal backdrop="opaque" isOpen={modalShiftForm.isOpen} onClose={handleCloseShiftForm} size="2xl">
         <ModalContent>
           <ModalHeader className="text-[#122C93]">
-            {shiftFormHook.formState.selectedId ? "Edit Waktu Jadwal" : "Tambah Waktu Jadwal"}
+            {selectedShiftId ? "Edit Waktu Jadwal" : "Tambah Waktu Jadwal"}
           </ModalHeader>
           <ModalBody>
             <div className="container-form flex flex-col gap-6 p-3">
@@ -125,14 +239,12 @@ const ShiftConfigSection = () => {
                 placeholder="Contoh: Shift Pagi"
                 variant="underlined"
                 labelPlacement="inside"
-                value={shiftFormHook.formState.formData.nama}
+                value={shiftFormData.nama}
                 maxLength={21}
                 minLength={1}
-                isInvalid={!!shiftFormHook.formState.errors.nama}
-                errorMessage={shiftFormHook.formState.errors.nama}
-                onChange={(e) =>
-                  shiftFormHook.setFormData({ ...shiftFormHook.formState.formData, nama: e.target.value })
-                }
+                isInvalid={!!shiftFormErrors.nama}
+                errorMessage={shiftFormErrors.nama}
+                onChange={(e) => setShiftFormData({ ...shiftFormData, nama: e.target.value })}
               />
               <div className="flex gap-4 w-full">
                 <Input
@@ -142,12 +254,10 @@ const ShiftConfigSection = () => {
                   variant="underlined"
                   labelPlacement="inside"
                   step="1"
-                  value={shiftFormHook.formState.formData.mulai}
-                  isInvalid={!!shiftFormHook.formState.errors.mulai}
-                  errorMessage={shiftFormHook.formState.errors.mulai}
-                  onChange={(e) =>
-                    shiftFormHook.setFormData({ ...shiftFormHook.formState.formData, mulai: e.target.value })
-                  }
+                  value={shiftFormData.mulai}
+                  isInvalid={!!shiftFormErrors.mulai}
+                  errorMessage={shiftFormErrors.mulai}
+                  onChange={(e) => setShiftFormData({ ...shiftFormData, mulai: e.target.value })}
                 />
                 <Input
                   className="w-full"
@@ -156,15 +266,13 @@ const ShiftConfigSection = () => {
                   variant="underlined"
                   labelPlacement="inside"
                   step="1"
-                  value={shiftFormHook.formState.formData.selesai}
-                  isInvalid={!!shiftFormHook.formState.errors.selesai}
-                  errorMessage={shiftFormHook.formState.errors.selesai}
-                  onChange={(e) =>
-                    shiftFormHook.setFormData({ ...shiftFormHook.formState.formData, selesai: e.target.value })
-                  }
+                  value={shiftFormData.selesai}
+                  isInvalid={!!shiftFormErrors.selesai}
+                  errorMessage={shiftFormErrors.selesai}
+                  onChange={(e) => setShiftFormData({ ...shiftFormData, selesai: e.target.value })}
                 />
               </div>
-              {!shiftFormHook.formState.selectedId && (
+              {!selectedShiftId && (
                 <p className="text-xs text-gray-400 italic mt-[-10px]">
                   * Timezone akan otomatis terdeteksi: {getDeviceTimezone()}
                 </p>
@@ -177,21 +285,20 @@ const ShiftConfigSection = () => {
             </Button>
             <Button
               className="bg-[#122C93] text-white px-10"
-              onPress={shiftFormHook.actions.handleSubmit}
-              isLoading={shiftFormHook.formState.isSubmitting}
+              onPress={handleShiftFormSubmit}
+              isLoading={isShiftFormSubmitting}
             >
-              {shiftFormHook.formState.selectedId ? "Update" : "Simpan"}
+              {selectedShiftId ? "Update" : "Simpan"}
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
 
       <DeleteConfirmationModal
-        isOpen={shiftDataHook.deleteState.isOpen}
-        onClose={() => shiftDataHook.deleteState.setIsOpen(false)}
-        onConfirm={shiftDataHook.deleteState.execute}
-        isLoading={shiftDataHook.deleteState.isDeleting}
-        title="Hapus Konfigurasi Shift"
+        isOpen={!!deleteShiftId}
+        onClose={() => setDeleteShiftId(null)}
+        onConfirm={handleDeleteShift}
+        title="Konfirmasi Hapus Shift"
         message="Apakah anda yakin ingin menghapus shift ini?"
       />
     </div>

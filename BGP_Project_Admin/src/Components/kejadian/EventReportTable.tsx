@@ -284,14 +284,14 @@ export const EventReportTable = ({
         </Table>
       </div>
 
-      <Modal isOpen={isMapOpen} onClose={onMapClose} size="3xl">
+      <Modal isOpen={isMapOpen} onClose={onMapClose} size="5xl">
         <ModalContent>
           {(onClose) => (
             <>
               <ModalHeader className="flex flex-col gap-1">Lokasi Kejadian</ModalHeader>
               <ModalBody>
                 {selectedMapLocation && (
-                  <div className="w-full h-[400px] rounded-lg overflow-hidden border border-gray-200">
+                  <div className="w-full h-[600px] rounded-lg overflow-hidden border border-gray-200">
                     <MapContainer
                       center={[selectedMapLocation.lat, selectedMapLocation.lng]}
                       zoom={15}

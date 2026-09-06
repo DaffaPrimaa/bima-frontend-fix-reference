@@ -3,24 +3,27 @@ export interface Shift {
   nama: string;
   mulai: string;
   selesai: string;
-  timezone?: string;
   created_at?: string;
-  updated_at?: string;
+  timezone?: string;
 }
 
 export interface ShiftResponse {
-  data: Shift[];
-  meta: {
-    limit: number;
-    has_more: boolean;
-    next_cursor: string | null;
+  data: {
+    data: Shift[];
+    pagination?: {
+      total_pages: number;
+      items_per_page: number;
+      current_page: number;
+      total_items: number;
+    };
   };
+  message?: string;
 }
 
 export interface CreateShiftPayload {
   nama: string;
-  start_local: string;
-  end_local: string;
+  mulai: string;
+  selesai: string;
   timezone?: string;
 }
 

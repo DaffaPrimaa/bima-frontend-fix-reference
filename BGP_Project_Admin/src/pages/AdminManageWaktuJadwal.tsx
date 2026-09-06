@@ -7,8 +7,7 @@ import { DeleteConfirmationModal } from "../Components/common/DeleteConfirmation
 
 const AdminManageWaktuJadwal = () => {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
-  const { data, setPage, handleNextPage, handlePrevPage, refreshData, deleteState } =
-    useShiftData();
+  const { data, setPage, refreshData, deleteState } = useShiftData();
 
   const formHook = useShiftForm({
     onSuccess: () => {
@@ -47,11 +46,10 @@ const AdminManageWaktuJadwal = () => {
           <ShiftTable
             data={data.listWaktu}
             isLoading={data.isLoading}
-            currentPage={data.currentPage}
-            hasMore={data.hasMore}
+            page={data.page}
+            totalPages={data.totalPages}
             rowsPerPage={data.rowsPerPage}
-            onNextPage={handleNextPage}
-            onPrevPage={handlePrevPage}
+            onPageChange={setPage}
             onEdit={handleOpenEdit}
             onDelete={deleteState.confirm}
           />

@@ -4,7 +4,7 @@ export interface ActivityLogActor {
   role: string;
 }
 
-export interface ActivityLog {
+export interface ActivityLogItem {
   uuid: string;
   action: string;
   resource: string;
@@ -13,20 +13,22 @@ export interface ActivityLog {
   created_at: string;
 }
 
-export interface ActivityLogResponse {
-  data: ActivityLog[];
-  meta: {
-    limit: number;
-    has_more: boolean;
-    next_cursor: string | null;
-  };
+export interface ActivityLogMeta {
+  limit: number;
+  has_more: boolean;
+  next_cursor: string | null;
 }
 
-export interface ActivityAction {
+export interface ActivityLogResponse {
+  data: ActivityLogItem[];
+  meta: ActivityLogMeta;
+}
+
+export interface ActivityLogActionItem {
   action: string;
   resource: string;
 }
 
-export interface ActivityActionsResponse {
-  data: ActivityAction[];
+export interface ActivityLogActionResponse {
+  data: ActivityLogActionItem[];
 }

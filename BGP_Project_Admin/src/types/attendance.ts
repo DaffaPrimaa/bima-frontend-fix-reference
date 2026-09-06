@@ -1,25 +1,35 @@
 export interface Absensi {
   uuid: string;
   work_date: string;
-  status: "pending" | "present" | "late" | "partial" | "absent" | "excused";
-  expected_starts_at: string | null;
-  expected_ends_at: string | null;
+  status: string;
+  expected_starts_at: string;
+  expected_ends_at: string;
   checked_in_at: string | null;
   checked_out_at: string | null;
+  difference_minutes: number | null;
   late_minutes: number | null;
   early_leave_minutes: number | null;
   worked_minutes: number | null;
+  check_in_location: { lat: number; lng: number } | null;
+  check_out_location: { lat: number; lng: number } | null;
+  check_in_distance_m: number | null;
+  check_out_distance_m: number | null;
+  edited_by: string;
+  scheduled: boolean;
+  shift: {
+    instance_uuid: string;
+    pattern: string;
+    pos: {
+      uuid: string;
+      nama: string;
+    };
+  };
   satpam: {
     uuid: string;
     nama: string;
     nip: string;
     client: string;
   };
-  shift: {
-    instance_uuid: string;
-    pattern: string;
-    pos: { uuid: string; nama: string };
-  } | null;
   created_at: string;
 }
 
@@ -32,16 +42,12 @@ export interface AttendanceResponse {
   };
 }
 
-export interface AttendanceDetailResponse {
-  data: Absensi;
-}
-
 export interface UpdateAttendancePayload {
-  checked_in_at?: string | null;
-  checked_out_at?: string | null;
+  checked_in_at?: string;
+  checked_out_at?: string;
 }
 
 export interface FormData {
-  check_in: string;
-  check_out: string;
+  checked_in_at: string;
+  checked_out_at: string;
 }

@@ -23,16 +23,10 @@ export const getTanggalTableMingguan = (date: Date) => {
   });
 };
 
-interface SatpamLike {
-  uuid: string;
-  nama: string;
-  nip: string;
-}
-
 interface JadwalMingguanViewProps {
   currentDate: Date;
   allJadwal: Jadwal[];
-  listSatpam: SatpamLike[];
+  listSatpam: any[];
   handleEditJadwalInstance: (item: Jadwal) => void;
   handleOpenAssignForDate: (satpamUuid: string, dateIso: string) => void;
 }
@@ -93,7 +87,7 @@ const JadwalMingguanView = ({
                     (j) =>
                       j.satpam.uuid === satpam.uuid &&
                       j.work_date === iso &&
-                      j.status !== "cancelled",
+                      j.status !== "cancelled"
                   );
 
                   return (

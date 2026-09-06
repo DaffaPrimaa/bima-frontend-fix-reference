@@ -1,7 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useDashboard } from "../hooks/useDashboard";
-import { dashboardService } from "../services/dashboardService";
-import { useNavigate } from "react-router-dom";
 import { FaBuilding, FaTransgender, FaUsers, FaEye } from "react-icons/fa";
 import { IoStatsChart } from "react-icons/io5";
 import { PiWarningCircleFill } from "react-icons/pi";
@@ -17,9 +15,7 @@ import {
   TableRow,
   TableCell,
   Pagination,
-  Spinner,
 } from "@heroui/react";
-import type { AdminDashboardData, OffenderItem } from "../types/dashboard";
 
 const columnsPerhatian = [
   { name: "No", uid: "no" },
@@ -31,7 +27,66 @@ const columnsPerhatian = [
   { name: "Aksi", uid: "aksi" },
 ];
 
-const ROWS_PER_PAGE = 5;
+const mockDataPerhatian = [
+  {
+    id: 1,
+    nama: "Budi Santoso",
+    telat: "10",
+    tidak_hadir: "10",
+    teguran: "10",
+    sp: "10",
+  },
+  {
+    id: 2,
+    nama: "Agus Supriyanto",
+    telat: "10",
+    tidak_hadir: "10",
+    teguran: "10",
+    sp: "10",
+  },
+  {
+    id: 3,
+    nama: "Siti Rahayu",
+    telat: "8",
+    tidak_hadir: "7",
+    teguran: "5",
+    sp: "2",
+  },
+  {
+    id: 4,
+    nama: "Dedi Kurniawan",
+    telat: "7",
+    tidak_hadir: "9",
+    teguran: "4",
+    sp: "1",
+  },
+  {
+    id: 5,
+    nama: "Rudi Hermawan",
+    telat: "6",
+    tidak_hadir: "5",
+    teguran: "3",
+    sp: "-",
+  },
+  {
+    id: 6,
+    nama: "Lina Marlina",
+    telat: "5",
+    tidak_hadir: "4",
+    teguran: "2",
+    sp: "-",
+  },
+  {
+    id: 7,
+    nama: "Hendra Wijaya",
+    telat: "4",
+    tidak_hadir: "3",
+    teguran: "2",
+    sp: "-",
+  },
+];
+
+const ROWS_PER_PAGE = 3;
 
 const LegendItem = ({ color, label, value }: any) => (
   <div className="flex items-center justify-between">
@@ -72,6 +127,7 @@ const DonutChart = ({ data, size = 110, label }: any) => (
         />
       </PieChart>
     </ResponsiveContainer>
+    {/* center label */}
     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
       <span className="text-xl font-bold text-[#122C93] leading-none">
         {label.value}
@@ -83,41 +139,15 @@ const DonutChart = ({ data, size = 110, label }: any) => (
 
 const AdminDashboard = () => {
   const { user, greeting } = useDashboard();
-  const navigate = useNavigate();
   const [page, setPage] = useState(1);
-  const [summary, setSummary] = useState<AdminDashboardData | null>(null);
-  const [offenders, setOffenders] = useState<OffenderItem[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [summaryRes, offendersRes] = await Promise.all([
-          dashboardService.getSummary(),
-          dashboardService.getOffenders(10),
-        ]);
-        setSummary(summaryRes.data as AdminDashboardData);
-        setOffenders(offendersRes.data);
-      } catch (error) {
-        console.error("Fetch dashboard error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
-
-  const totalPersonel = summary?.satpam.total ?? 0;
-  const aktifCount = summary?.satpam.active ?? 0;
-  const maleCount = summary?.gender["1"] ?? 0;
-  const femaleCount = summary?.gender["2"] ?? 0;
-  const pendingCount = summary?.satpam.pending ?? 0;
-  const tidakAktifCount = (summary?.satpam.inactive ?? 0) + (summary?.satpam.resign ?? 0) + (summary?.satpam.rejected ?? 0);
-  const totalClient = summary?.clients.total ?? 0;
-  const aktifPct = totalPersonel > 0 ? Math.round((aktifCount / totalPersonel) * 100) : 0;
-  const topClients = (summary?.clients.distribution ?? []).slice(0, 5);
-  const maxClientSatpam = Math.max(1, ...topClients.map((c) => c.satpam));
+  // stats
+  const totalPersonel = 170;
+  const maleCount = 141;
+  const femaleCount = 17;
+  const aktifCount = 141;
+  const cutiCount = 6;
+  const tidakAktifCount = 11;
 
   const genderData = [
     { name: "Laki-laki", value: maleCount, color: "#122C93" },
@@ -125,12 +155,13 @@ const AdminDashboard = () => {
   ];
   const statusData = [
     { name: "Aktif", value: aktifCount, color: "#122C93" },
-    { name: "Menunggu", value: pendingCount, color: "#93c5fd" },
+    { name: "Cuti / Izin", value: cutiCount, color: "#93c5fd" },
     { name: "Tidak Aktif", value: tidakAktifCount, color: "#dbeafe" },
   ];
 
-  const totalPages = Math.ceil(offenders.length / ROWS_PER_PAGE);
-  const pagedData = offenders.slice(
+  // pagination
+  const totalPages = Math.ceil(mockDataPerhatian.length / ROWS_PER_PAGE);
+  const pagedData = mockDataPerhatian.slice(
     (page - 1) * ROWS_PER_PAGE,
     page * ROWS_PER_PAGE,
   );
@@ -145,266 +176,253 @@ const AdminDashboard = () => {
         </p>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <Spinner size="lg" />
-        </div>
-      ) : (
-        <>
-          {/* STAT GRID 3×2 */}
-          <div className="grid grid-cols-3 gap-4">
-            {/* Jumlah Satpam */}
-            <div className="flex flex-col bg-white p-5 rounded-xl border border-[#E8EEFF] justify-between gap-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">Jumlah Satpam</h2>
-                <div className="bg-[#DBEAFE] p-2 rounded-xl">
-                  <GiPoliceOfficerHead className="text-2xl text-[#122C93]" />
-                </div>
-              </div>
-              <div className="flex items-end gap-2 mt-1">
-                <h2 className="font-extrabold text-4xl leading-none text-[#122C93]">
-                  {totalPersonel}
-                </h2>
-                <h2 className="font-light text-sm text-black mb-0.5">Personel</h2>
-              </div>
-            </div>
-
-            {/* Satpam Aktif */}
-            <div className="flex flex-col bg-white p-5 rounded-xl border border-[#E8EEFF] justify-between gap-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">Satpam Aktif</h2>
-                <div className="bg-[#DCFCE7] p-2 rounded-xl">
-                  <BsPersonFillCheck className="text-2xl text-[#008236]" />
-                </div>
-              </div>
-              <div className="flex items-end gap-2 mt-1">
-                <h2 className="font-extrabold text-4xl leading-none text-[#008236]">
-                  {aktifCount}
-                </h2>
-                <h2 className="font-light text-sm text-black mb-0.5">dari {totalPersonel}</h2>
-              </div>
-              <Progress
-                aria-label="Satpam aktif"
-                className="h-2 mt-1"
-                value={aktifPct}
-                classNames={{ track: "bg-[#D9D9D9]", indicator: "bg-[#008236]" }}
-              />
-            </div>
-
-            {/* Total Client */}
-            <div className="flex flex-col bg-white p-5 rounded-xl border border-[#E8EEFF] justify-between gap-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">Total Client</h2>
-                <div className="bg-[#DBEAFE] p-2 rounded-xl">
-                  <FaBuilding className="text-2xl text-[#122C93]" />
-                </div>
-              </div>
-              <div className="flex items-end gap-2 mt-1">
-                <h2 className="font-extrabold text-4xl leading-none text-[#122C93]">
-                  {totalClient}
-                </h2>
-                <h2 className="font-light text-sm text-black mb-0.5">
-                  Mitra
-                </h2>
-              </div>
-            </div>
-
-            {/* Gender */}
-            <div className="flex flex-col bg-white p-5 rounded-xl border border-[#E8EEFF] justify-between gap-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">Gender</h2>
-                <div className="bg-[#DBEAFE] p-2 rounded-xl">
-                  <FaTransgender className="text-2xl text-[#122C93]" />
-                </div>
-              </div>
-              <div className="flex items-center gap-4 mt-1">
-                <DonutChart
-                  data={genderData}
-                  size={110}
-                  label={{ value: totalPersonel, sub: "Total" }}
-                />
-                <div className="flex flex-col gap-3 w-full">
-                  <LegendItem color="#122C93" label="Laki-laki" value={maleCount} />
-                  <LegendItem
-                    color="#93c5fd"
-                    label="Perempuan"
-                    value={femaleCount}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Status Personel */}
-            <div className="flex flex-col bg-white p-5 rounded-xl border border-[#E8EEFF] justify-between gap-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">Status Personel</h2>
-                <div className="bg-[#DBEAFE] p-2 rounded-xl">
-                  <FaUsers className="text-2xl text-[#122C93]" />
-                </div>
-              </div>
-              <div className="flex items-center gap-4 mt-1">
-                <DonutChart
-                  data={statusData}
-                  size={110}
-                  label={{ value: totalPersonel, sub: "Total" }}
-                />
-                <div className="flex flex-col gap-3 w-full">
-                  <LegendItem color="#122C93" label="Aktif" value={aktifCount} />
-                  <LegendItem
-                    color="#93c5fd"
-                    label="Menunggu"
-                    value={pendingCount}
-                  />
-                  <LegendItem
-                    color="#dbeafe"
-                    label="Tidak Aktif"
-                    value={tidakAktifCount}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Distribusi per Client */}
-            <div className="flex flex-col bg-white p-5 rounded-xl border border-[#E8EEFF] justify-between gap-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">
-                  Distribusi Satpam per Client
-                </h2>
-                <div className="bg-[#DBEAFE] p-2 rounded-xl">
-                  <IoStatsChart className="text-2xl text-[#122C93]" />
-                </div>
-              </div>
-              <div className="flex flex-col gap-3 mt-1">
-                {topClients.length === 0 && (
-                  <p className="text-xs text-gray-400">Belum ada data client</p>
-                )}
-                {topClients.map((item) => (
-                  <div key={item.uuid} className="flex flex-col">
-                    <div className="flex justify-between items-center">
-                      <h2 className="font-medium text-xs truncate">{item.nama}</h2>
-                      <h2 className="text-[#8D8787] text-xs ml-1">{item.satpam}</h2>
-                    </div>
-                    <Progress
-                      aria-label={item.nama}
-                      className="h-2 mt-1"
-                      value={(item.satpam / maxClientSatpam) * 100}
-                      classNames={{
-                        track: "bg-[#D9D9D9]",
-                        indicator: "bg-[#122C93]",
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
+      {/* STAT GRID 3×2 */}
+      <div className="grid grid-cols-3 gap-4">
+        {/* Jumlah Satpam */}
+        <div className="flex flex-col bg-white p-5 rounded-xl border border-[#E8EEFF] justify-between gap-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Jumlah Satpam</h2>
+            <div className="bg-[#DBEAFE] p-2 rounded-xl">
+              <GiPoliceOfficerHead className="text-2xl text-[#122C93]" />
             </div>
           </div>
-          {/* END STAT GRID */}
+          <div className="flex items-end gap-2 mt-1">
+            <h2 className="font-extrabold text-4xl leading-none text-[#122C93]">
+              170
+            </h2>
+            <h2 className="font-light text-sm text-black mb-0.5">Personel</h2>
+          </div>
+        </div>
 
-          {/* TABLE */}
-          <div className="flex flex-col bg-white border border-[#E8EEFF] rounded-2xl w-full p-4 gap-3">
-            <div className="flex items-center gap-4">
-              <div className="bg-[#FFE2E2] p-2 rounded-xl flex items-center">
-                <PiWarningCircleFill className="text-2xl text-[#C10007]" />
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <h2 className="font-semibold text-[#122C93] text-base">
-                  Satpam Perlu Diperhatikan
-                </h2>
-                <h2 className="font-light text-xs text-gray-500">
-                  Personel dengan catatan kedisiplinan tertinggi 30 hari terakhir
-                </h2>
-              </div>
+        {/* Satpam Aktif */}
+        <div className="flex flex-col bg-white p-5 rounded-xl border border-[#E8EEFF] justify-between gap-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Satpam Aktif</h2>
+            <div className="bg-[#DCFCE7] p-2 rounded-xl">
+              <BsPersonFillCheck className="text-2xl text-[#008236]" />
             </div>
+          </div>
+          <div className="flex items-end gap-2 mt-1">
+            <h2 className="font-extrabold text-4xl leading-none text-[#008236]">
+              158
+            </h2>
+            <h2 className="font-light text-sm text-black mb-0.5">dari 170</h2>
+          </div>
+          <Progress
+            aria-label="Satpam aktif"
+            className="h-2 mt-1"
+            value={93}
+            classNames={{ track: "bg-[#D9D9D9]", indicator: "bg-[#008236]" }}
+          />
+        </div>
 
-            <Table
-              aria-label="Tabel Satpam Perlu Diperhatikan"
-              shadow="none"
-              isStriped
-              classNames={{ th: "text-xs py-2.5 px-3", td: "text-sm py-2.5 px-3" }}
-            >
-              <TableHeader columns={columnsPerhatian}>
-                {(column) => (
-                  <TableColumn key={column.uid} align="center">
-                    {column.name}
-                  </TableColumn>
-                )}
-              </TableHeader>
-              <TableBody items={pagedData} emptyContent="Tidak ada satpam yang perlu diperhatikan">
-                {(item) => (
-                  <TableRow key={item.uuid}>
-                    {(columnKey) => {
-                      switch (columnKey) {
-                        case "no":
-                          return (
-                            <TableCell>
-                              {offenders.indexOf(item) + 1}
-                            </TableCell>
-                          );
-                        case "nama":
-                          return (
-                            <TableCell>
-                              <div className="font-medium">{item.nama}</div>
-                            </TableCell>
-                          );
-                        case "telat":
-                          return <TableCell>{item.late}</TableCell>;
-                        case "tidak_hadir":
-                          return <TableCell>{item.absent}</TableCell>;
-                        case "teguran":
-                          return <TableCell>{item.teguran}</TableCell>;
-                        case "sp":
-                          return (
-                            <TableCell>
-                              <span
-                                className={
-                                  item.sp > 0
-                                    ? "text-[#C10007] font-semibold"
-                                    : ""
-                                }
-                              >
-                                {item.sp || "-"}
-                              </span>
-                            </TableCell>
-                          );
-                        case "aksi":
-                          return (
-                            <TableCell>
-                              <div className="flex justify-center">
-                                <button
-                                  onClick={() => navigate("/AdminDetailSatpam", { state: { uuid: item.uuid } })}
-                                >
-                                  <FaEye className="text-[#122C93] text-base" />
-                                </button>
-                              </div>
-                            </TableCell>
-                          );
-                        default:
-                          return <TableCell>-</TableCell>;
-                      }
-                    }}
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+        {/* Total Client */}
+        <div className="flex flex-col bg-white p-5 rounded-xl border border-[#E8EEFF] justify-between gap-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Total Client</h2>
+            <div className="bg-[#DBEAFE] p-2 rounded-xl">
+              <FaBuilding className="text-2xl text-[#122C93]" />
+            </div>
+          </div>
+          <div className="flex items-end gap-2 mt-1">
+            <h2 className="font-extrabold text-4xl leading-none text-[#122C93]">
+              20
+            </h2>
+            <h2 className="font-light text-sm text-black mb-0.5">
+              Lokasi Aktif
+            </h2>
+          </div>
+        </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center pt-1">
-                <Pagination
-                  total={totalPages}
-                  page={page}
-                  onChange={setPage}
-                  size="sm"
-                  showControls
+        {/* Gender */}
+        <div className="flex flex-col bg-white p-5 rounded-xl border border-[#E8EEFF] justify-between gap-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Gender</h2>
+            <div className="bg-[#DBEAFE] p-2 rounded-xl">
+              <FaTransgender className="text-2xl text-[#122C93]" />
+            </div>
+          </div>
+          <div className="flex items-center gap-4 mt-1">
+            <DonutChart
+              data={genderData}
+              size={110}
+              label={{ value: totalPersonel, sub: "Total" }}
+            />
+            <div className="flex flex-col gap-3 w-full">
+              <LegendItem color="#122C93" label="Laki-laki" value={maleCount} />
+              <LegendItem
+                color="#93c5fd"
+                label="Perempuan"
+                value={femaleCount}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Status Personel */}
+        <div className="flex flex-col bg-white p-5 rounded-xl border border-[#E8EEFF] justify-between gap-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Status Personel</h2>
+            <div className="bg-[#DBEAFE] p-2 rounded-xl">
+              <FaUsers className="text-2xl text-[#122C93]" />
+            </div>
+          </div>
+          <div className="flex items-center gap-4 mt-1">
+            <DonutChart
+              data={statusData}
+              size={110}
+              label={{ value: totalPersonel, sub: "Total" }}
+            />
+            <div className="flex flex-col gap-3 w-full">
+              <LegendItem color="#122C93" label="Aktif" value={aktifCount} />
+              <LegendItem
+                color="#93c5fd"
+                label="Cuti / Izin"
+                value={cutiCount}
+              />
+              <LegendItem
+                color="#dbeafe"
+                label="Tidak Aktif"
+                value={tidakAktifCount}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Distribusi per Client */}
+        <div className="flex flex-col bg-white p-5 rounded-xl border border-[#E8EEFF] justify-between gap-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">
+              Distribusi Satpam per Client
+            </h2>
+            <div className="bg-[#DBEAFE] p-2 rounded-xl">
+              <IoStatsChart className="text-2xl text-[#122C93]" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 mt-1">
+            {[
+              { nama: "Sumarecon Mall Badung", val: 20, pct: 60 },
+              { nama: "Summarecon Mall Serpong", val: 15, pct: 45 },
+              { nama: "Summarecon Mall Bekasi", val: 18, pct: 54 },
+            ].map((item) => (
+              <div key={item.nama} className="flex flex-col">
+                <div className="flex justify-between items-center">
+                  <h2 className="font-medium text-xs truncate">{item.nama}</h2>
+                  <h2 className="text-[#8D8787] text-xs ml-1">{item.val}</h2>
+                </div>
+                <Progress
+                  aria-label={item.nama}
+                  className="h-2 mt-1"
+                  value={item.pct}
                   classNames={{
-                    cursor: "bg-[#122C93] text-white",
+                    track: "bg-[#D9D9D9]",
+                    indicator: "bg-[#122C93]",
                   }}
                 />
               </div>
-            )}
+            ))}
           </div>
-        </>
-      )}
+        </div>
+      </div>
+      {/* END STAT GRID */}
+
+      {/* TABLE */}
+      <div className="flex flex-col bg-white border border-[#E8EEFF] rounded-2xl w-full p-4 gap-3">
+        <div className="flex items-center gap-4">
+          <div className="bg-[#FFE2E2] p-2 rounded-xl flex items-center">
+            <PiWarningCircleFill className="text-2xl text-[#C10007]" />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <h2 className="font-semibold text-[#122C93] text-base">
+              Satpam Perlu Diperhatikan
+            </h2>
+            <h2 className="font-light text-xs text-gray-500">
+              Personel dengan catatan kedisiplinan tertinggi 30 hari terakhir
+            </h2>
+          </div>
+        </div>
+
+        <Table
+          aria-label="Tabel Satpam Perlu Diperhatikan"
+          shadow="none"
+          isStriped
+          classNames={{ th: "text-xs py-2.5 px-3", td: "text-sm py-2.5 px-3" }}
+        >
+          <TableHeader columns={columnsPerhatian}>
+            {(column) => (
+              <TableColumn key={column.uid} align="center">
+                {column.name}
+              </TableColumn>
+            )}
+          </TableHeader>
+          <TableBody items={pagedData}>
+            {(item) => (
+              <TableRow key={item.id}>
+                {(columnKey) => {
+                  switch (columnKey) {
+                    case "no":
+                      return (
+                        <TableCell>
+                          {mockDataPerhatian.indexOf(item) + 1}
+                        </TableCell>
+                      );
+                    case "nama":
+                      return (
+                        <TableCell>
+                          <div className="font-medium">{item.nama}</div>
+                        </TableCell>
+                      );
+                    case "telat":
+                      return <TableCell>{item.telat}</TableCell>;
+                    case "tidak_hadir":
+                      return <TableCell>{item.tidak_hadir}</TableCell>;
+                    case "teguran":
+                      return <TableCell>{item.teguran}</TableCell>;
+                    case "sp":
+                      return (
+                        <TableCell>
+                          <span
+                            className={
+                              item.sp !== "-"
+                                ? "text-[#C10007] font-semibold"
+                                : ""
+                            }
+                          >
+                            {item.sp}
+                          </span>
+                        </TableCell>
+                      );
+                    case "aksi":
+                      return (
+                        <TableCell>
+                          <div className="flex justify-center">
+                            <FaEye className="text-[#122C93] text-base" />
+                          </div>
+                        </TableCell>
+                      );
+                    default:
+                      return <TableCell>-</TableCell>;
+                  }
+                }}
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+
+        {/* Pagination */}
+        <div className="flex justify-center pt-1">
+          <Pagination
+            total={totalPages}
+            page={page}
+            onChange={setPage}
+            size="sm"
+            showControls
+            classNames={{
+              cursor: "bg-[#122C93] text-white",
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 };

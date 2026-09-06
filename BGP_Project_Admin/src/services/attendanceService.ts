@@ -1,7 +1,6 @@
 import { fetchWithAuth } from "../Utils/fetchWithAuth";
 import type {
   AttendanceResponse,
-  AttendanceDetailResponse,
   UpdateAttendancePayload,
 } from "../types/attendance";
 import { getToken } from "../Utils/helpers";
@@ -14,36 +13,36 @@ const getHeaders = () => ({
 });
 
 export const attendanceService = {
-  getAll: async (paramsObj: {
-    limit?: number;
-    cursor?: string | null;
-    search?: string;
-    status?: string;
-    satpam?: string;
-    client?: string;
-    from?: string;
-    to?: string;
-  } = {}): Promise<AttendanceResponse> => {
-    const limit = paramsObj.limit ?? 12;
-    const params = new URLSearchParams({ limit: limit.toString() });
-    if (paramsObj.cursor) params.append("cursor", paramsObj.cursor);
-    if (paramsObj.search) params.append("search", paramsObj.search);
-    if (paramsObj.status) params.append("status", paramsObj.status);
-    if (paramsObj.satpam) params.append("satpam", paramsObj.satpam);
-    if (paramsObj.client) params.append("client", paramsObj.client);
-    if (paramsObj.from) params.append("from", paramsObj.from);
-    if (paramsObj.to) params.append("to", paramsObj.to);
+  getAll: async (
+    limit: number = 20,
+    cursor?: string | null,
+    search?: string,
+    status?: string,
+    satpam?: string,
+    client?: string,
+    from?: string,
+    to?: string
+  ): Promise<AttendanceResponse> => {
+    const params = new URLSearchParams();
+    if (limit) params.append("limit", limit.toString());
+    if (cursor) params.append("cursor", cursor);
+    if (search) params.append("search", search);
+    if (status) params.append("status", status);
+    if (satpam) params.append("satpam", satpam);
+    if (client) params.append("client", client);
+    if (from) params.append("from", from);
+    if (to) params.append("to", to);
 
     const res = await fetchWithAuth(`${BASE_URL}/attendance?${params.toString()}`, {
-      headers: getHeaders(),
+      headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (!res.ok) throw new Error("Gagal memuat data absensi");
     return res.json();
   },
 
-  getById: async (uuid: string): Promise<AttendanceDetailResponse> => {
+  getById: async (uuid: string): Promise<{ data: any }> => {
     const res = await fetchWithAuth(`${BASE_URL}/attendance/${uuid}`, {
-      headers: getHeaders(),
+      headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (!res.ok) throw new Error("Gagal mengambil detail data");
     return res.json();
@@ -58,17 +57,27 @@ export const attendanceService = {
       headers: getHeaders(),
       body: JSON.stringify(payload),
     });
-    const result = await res.json().catch(() => ({}));
-    if (!res.ok)
-      throw new Error(result.error?.message || result.message || "Gagal update data");
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || "Gagal update data");
+    }
   },
 
   export: async (): Promise<Blob> => {
     const res = await fetchWithAuth(`${BASE_URL}/attendance/export`, {
       method: "GET",
-      headers: getHeaders(),
+      headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (!res.ok) throw new Error("Gagal mengunduh file");
+    return res.blob();
+  },
+
+  exportById: async (uuid: string): Promise<Blob> => {
+    const res = await fetchWithAuth(`${BASE_URL}/attendance/${uuid}/export`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) throw new Error("Gagal mengunduh file absensi");
     return res.blob();
   },
 };

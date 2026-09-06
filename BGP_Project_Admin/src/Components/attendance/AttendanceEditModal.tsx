@@ -35,10 +35,10 @@ export const AttendanceEditModal = ({
                 type="datetime-local"
                 variant="underlined"
                 labelPlacement="inside"
-                value={formData.check_in}
+                value={formData.checked_in_at}
                 errorMessage="Input harus benar atau setidaknya terisi"
                 onChange={(e) =>
-                  setFormData({ ...formData, check_in: e.target.value })
+                  setFormData({ ...formData, checked_in_at: e.target.value })
                 }
               />
             </div>
@@ -48,13 +48,14 @@ export const AttendanceEditModal = ({
                 type="datetime-local"
                 variant="underlined"
                 labelPlacement="inside"
-                value={formData.check_out}
+                value={formData.checked_out_at}
                 errorMessage="Input harus benar atau setidaknya terisi"
                 onChange={(e) =>
-                  setFormData({ ...formData, check_out: e.target.value })
+                  setFormData({ ...formData, checked_out_at: e.target.value })
                 }
               />
             </div>
+
           </div>
         </ModalBody>
         <ModalFooter className="flex justify-center pb-8">

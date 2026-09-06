@@ -15,11 +15,10 @@ import type { Shift } from "../../types/shift";
 interface ShiftTableProps {
   data: Shift[];
   isLoading: boolean;
-  currentPage: number;
-  hasMore: boolean;
+  page: number;
+  totalPages: number;
   rowsPerPage: number;
-  onNextPage: () => void;
-  onPrevPage: () => void;
+  onPageChange: (page: number) => void;
   onEdit: (uuid: string) => void;
   onDelete: (uuid: string) => void;
 }
@@ -27,11 +26,10 @@ interface ShiftTableProps {
 export const ShiftTable = ({
   data,
   isLoading,
-  currentPage,
-  hasMore,
+  page,
+  totalPages,
   rowsPerPage,
-  onNextPage,
-  onPrevPage,
+  onPageChange,
   onEdit,
   onDelete,
 }: ShiftTableProps) => {
@@ -41,19 +39,18 @@ export const ShiftTable = ({
       shadow="none"
       className="rounded-xl border border-gray-200"
       bottomContent={
-        <div className="flex w-full justify-center">
-          <Pagination
-            showControls
-            showShadow
-            color="primary"
-            page={currentPage}
-            total={hasMore ? currentPage + 1 : currentPage}
-            onChange={(p) => {
-              if (p > currentPage) onNextPage();
-              else if (p < currentPage) onPrevPage();
-            }}
-          />
-        </div>
+        totalPages > 0 ? (
+          <div className="flex w-full justify-center">
+            <Pagination
+              showControls
+              showShadow
+              color="primary"
+              page={page}
+              total={totalPages}
+              onChange={onPageChange}
+            />
+          </div>
+        ) : null
       }
     >
       <TableHeader>
@@ -70,7 +67,7 @@ export const ShiftTable = ({
       >
         {data.map((item, index) => (
           <TableRow key={item.uuid}>
-            <TableCell>{(currentPage - 1) * rowsPerPage + index + 1}</TableCell>
+            <TableCell>{(page - 1) * rowsPerPage + index + 1}</TableCell>
             <TableCell>
               <div className="w-[150px] truncate">{item.nama}</div>
             </TableCell>
